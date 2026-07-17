@@ -42,6 +42,10 @@ function textResponse(body: string, status: number, headers?: HeadersInit) {
   });
 }
 
+function successResponse() {
+  return Response.json({}, { status: 200 });
+}
+
 async function readBoundedBody(request: Request): Promise<BoundedBody> {
   const contentLength = request.headers.get("content-length");
 
@@ -172,7 +176,7 @@ export function createSendSmsHandler(
     }
 
     if (claim.status === "completed") {
-      return new Response(null, { status: 200 });
+      return successResponse();
     }
 
     if (claim.status === "busy") {
@@ -216,6 +220,6 @@ export function createSendSmsHandler(
       return textResponse("No pudimos procesar la solicitud.", 503);
     }
 
-    return new Response(null, { status: 200 });
+    return successResponse();
   };
 }

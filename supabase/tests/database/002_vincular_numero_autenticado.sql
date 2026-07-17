@@ -1,6 +1,6 @@
 begin;
 
-select plan(18);
+select plan(20);
 
 select has_function(
   'public',
@@ -102,7 +102,16 @@ values
     '00000000-0000-0000-0000-000000000014',
     'authenticated',
     'authenticated',
-    '3001234514',
+    'telefono-invalido',
+    statement_timestamp(),
+    '{}'::jsonb,
+    '{}'::jsonb
+  ),
+  (
+    '00000000-0000-0000-0000-000000000015',
+    'authenticated',
+    'authenticated',
+    '573001234515',
     statement_timestamp(),
     '{}'::jsonb,
     '{}'::jsonb
@@ -119,6 +128,28 @@ select throws_ok(
 );
 
 reset role;
+
+select set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-0000-0000-000000000015',
+  true
+);
+set local role authenticated;
+
+select lives_ok(
+  $$select public.vincular_numero_autenticado()$$,
+  'Normaliza el telefono canonico de Supabase Auth sin signo mas'
+);
+
+reset role;
+
+select results_eq(
+  $$select numero_whatsapp
+    from public.usuarios
+    where id = '00000000-0000-0000-0000-000000000015'::uuid$$,
+  $$values ('+573001234515'::text)$$,
+  'Persiste el telefono normalizado en formato E.164'
+);
 
 select set_config(
   'request.jwt.claim.sub',

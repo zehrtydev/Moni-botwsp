@@ -110,7 +110,8 @@ Deno.test("Send SMS delivers and completes a stable event fingerprint", async ()
   const response = await handler(signedRequest());
 
   assertEquals(response.status, 200);
-  assertEquals(await response.text(), "");
+  assertEquals(response.headers.get("content-type"), "application/json");
+  assertEquals(await response.json(), {});
   assertEquals(claimed, [{
     fingerprint: stableFingerprint,
     webhookId: "msg_test",
