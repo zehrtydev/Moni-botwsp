@@ -71,6 +71,8 @@ describe("DashboardPage", () => {
     expect(screen.getByText("+573001234567")).toBeInTheDocument();
     const expenseCard = screen.getByText("Almuerzo").closest("article");
     expect(expenseCard).toHaveTextContent("Alimentacion");
+    expect(screen.getByText("Total confirmado")).toBeInTheDocument();
+    expect(screen.getAllByText("$ 28.500")).toHaveLength(2);
     expect(mocks.loadDashboardData).toHaveBeenCalledWith(
       expect.objectContaining({ auth: expect.any(Object) }),
       "00000000-0000-0000-0000-000000000032",
