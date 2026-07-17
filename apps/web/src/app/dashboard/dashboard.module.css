@@ -1,0 +1,103 @@
+.page {
+  min-height: 100vh;
+  padding: 32px 20px;
+  background:
+    radial-gradient(circle at top right, rgba(114, 246, 168, 0.12), transparent 34%),
+    #07120d;
+}
+
+.shell {
+  width: min(100%, 1040px);
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 0 32px;
+}
+
+.eyebrow {
+  margin-bottom: 8px;
+  color: #72f6a8;
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.header h1 {
+  color: #f4fff8;
+  font-size: clamp(30px, 6vw, 48px);
+  letter-spacing: -0.04em;
+}
+
+.header button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid #2d4336;
+  border-radius: 12px;
+  cursor: pointer;
+  color: #baffd2;
+  background: transparent;
+  font-weight: 700;
+}
+
+.header button:hover {
+  border-color: #72f6a8;
+  background: rgba(114, 246, 168, 0.08);
+}
+
+.statusCard {
+  display: flex;
+  gap: 18px;
+  padding: 28px;
+  border: 1px solid rgba(174, 255, 206, 0.16);
+  border-radius: 22px;
+  background: rgba(12, 26, 19, 0.88);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+}
+
+.statusDot {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: #72f6a8;
+  box-shadow: 0 0 0 5px rgba(114, 246, 168, 0.12);
+}
+
+.statusCard h2 {
+  color: #f4fff8;
+  font-size: 20px;
+}
+
+.statusCard p {
+  max-width: 620px;
+  margin-top: 8px;
+  color: #aebdb4;
+  line-height: 1.65;
+}
+
+@media (max-width: 620px) {
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .header button {
+    width: 100%;
+  }
+
+  .header form {
+    width: 100%;
+  }
+
+  .statusCard {
+    padding: 22px;
+  }
+}

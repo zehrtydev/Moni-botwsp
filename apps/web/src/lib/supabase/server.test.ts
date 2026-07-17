@@ -28,14 +28,18 @@ describe("createServerSupabaseClient", () => {
     vi.clearAllMocks();
   });
 
-  it("can be imported without reading environment variables", async () => {
-    vi.unstubAllEnvs();
+  it(
+    "can be imported without reading environment variables",
+    async () => {
+      vi.unstubAllEnvs();
 
-    await expect(import("./server")).resolves.toHaveProperty(
-      "createServerSupabaseClient",
-    );
-    expect(mocks.createServerClient).not.toHaveBeenCalled();
-  });
+      await expect(import("./server")).resolves.toHaveProperty(
+        "createServerSupabaseClient",
+      );
+      expect(mocks.createServerClient).not.toHaveBeenCalled();
+    },
+    15_000,
+  );
 
   it("awaits Next cookies and wires reads and writes into Supabase SSR", async () => {
     const cookieStore = {

@@ -29,4 +29,13 @@ describe("getSupabaseConfig", () => {
       }),
     ).toThrow("La configuracion publica de Supabase no esta disponible.");
   });
+
+  it("rejects a secret key in the public key variable", () => {
+    expect(() =>
+      getSupabaseConfig({
+        NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_secret_misconfigured",
+      }),
+    ).toThrow("La configuracion publica de Supabase no esta disponible.");
+  });
 });

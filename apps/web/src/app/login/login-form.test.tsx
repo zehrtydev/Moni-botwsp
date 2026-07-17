@@ -1,7 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { LoginForm } from "./login-form";
+
+afterEach(cleanup);
 
 describe("LoginForm", () => {
   it("starts with an accessible E.164 phone form", () => {
@@ -50,6 +52,9 @@ describe("LoginForm", () => {
     expect(
       screen.getByRole("button", { name: "Verificar y entrar" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Enviar otro codigo" }),
+    ).toHaveAttribute("formnovalidate");
     expect(screen.getByDisplayValue("+573001234567")).toBeInTheDocument();
   });
 });
