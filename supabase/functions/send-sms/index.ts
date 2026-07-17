@@ -115,8 +115,17 @@ Deno.serve(async (request) => {
       verify,
     });
 
-    return handler(request);
-  } catch {
+    const response = await handler(request);
+
+    if (!response.ok) {
+      console.error("send-sms request failed", { status: response.status });
+    }
+
+    return response;
+  } catch (error) {
+    console.error("send-sms setup failed", {
+      message: error instanceof Error ? error.message : "unknown error",
+    });
     return new Response("Servicio no configurado.", {
       status: 500,
       headers: { "content-type": "text/plain; charset=utf-8" },

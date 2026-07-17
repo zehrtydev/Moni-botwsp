@@ -22,7 +22,7 @@ interface SendSmsDependencies {
 
 type SendSmsHandler = (request: Request) => Promise<Response>;
 
-const e164Pattern = /^\+[1-9][0-9]{7,14}$/;
+const e164Pattern = /^\+?[1-9][0-9]{7,14}$/;
 const otpPattern = /^[0-9]{6}$/;
 const maximumBodyBytes = 32_768;
 const webhookIdPattern = /^[\x21-\x7e]{1,255}$/;
@@ -117,7 +117,7 @@ function readHookPayload(value: unknown) {
     return null;
   }
 
-  return { phone, otp };
+  return { phone: phone.startsWith("+") ? phone : `+${phone}`, otp };
 }
 
 export function createSendSmsHandler(

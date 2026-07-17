@@ -128,6 +128,23 @@ Deno.test("Send SMS delivers and completes a stable event fingerprint", async ()
   ]);
 });
 
+Deno.test("Send SMS normalizes Supabase digit-only phones to E.164", async () => {
+  const sent: Array<{ phone: string; text: string }> = [];
+  const handler = createSendSmsHandler(dependencies({
+    sendText: (message) => {
+      sent.push(message);
+      return Promise.resolve();
+    },
+  }));
+  const response = await handler(signedRequest(JSON.stringify({
+    user: { phone: "573001234567" },
+    sms: { otp: "123456" },
+  })));
+
+  assertEquals(response.status, 200);
+  assertEquals(sent[0]?.phone, "+573001234567");
+});
+
 Deno.test("Send SMS releases definitive provider rejections", async () => {
   const released: string[] = [];
   const handler = createSendSmsHandler(dependencies({
