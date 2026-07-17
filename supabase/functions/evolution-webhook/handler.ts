@@ -1,7 +1,12 @@
 import {
-  parseInboundRelayPayload,
   type InboundRelayMessage,
+  parseInboundRelayPayload,
 } from "../_shared/inbound-contract.ts";
+import type { EvolutionTextMessage } from "../_shared/evolution-client.ts";
+import {
+  extractTextExpense,
+  type TextExpenseExtraction,
+} from "../_shared/text-expense-extractor.ts";
 
 interface PersistedInboundMessage {
   proveedor: "evolution";
@@ -13,9 +18,30 @@ interface PersistedInboundMessage {
 }
 
 interface EvolutionWebhookDependencies {
+  claimReply(inboxId: string): Promise<
+    | { state: "claimed"; leaseToken: string; reply: string }
+    | { state: "busy" | "completed" | "none" }
+  >;
+  completeReply(
+    inboxId: string,
+    leaseToken: string,
+    outcome: "delivered" | "rejected" | "unknown",
+  ): Promise<void>;
+  expectedInstance: string;
+  isAmbiguousDeliveryError(error: unknown): boolean;
+  isRejectedDeliveryError(error: unknown): boolean;
   persistMessage(
     message: PersistedInboundMessage,
   ): Promise<"inserted" | "duplicate">;
+  processText(
+    instance: string,
+    message: InboundRelayMessage,
+    extraction: TextExpenseExtraction,
+  ): Promise<{
+    inboxId: string;
+  }>;
+  releaseReply(inboxId: string, leaseToken: string): Promise<void>;
+  sendText(message: EvolutionTextMessage): Promise<void>;
   verify(payload: string, headers: Headers): unknown | Promise<unknown>;
 }
 
@@ -122,6 +148,10 @@ export function createEvolutionWebhookHandler(
       return textResponse("Solicitud invalida.", 400);
     }
 
+    if (event.instance !== dependencies.expectedInstance) {
+      return textResponse("Instancia no autorizada.", 403);
+    }
+
     let result: "inserted" | "duplicate";
 
     try {
@@ -132,14 +162,96 @@ export function createEvolutionWebhookHandler(
       return textResponse("No pudimos procesar el mensaje.", 503);
     }
 
-    if (result === "duplicate") {
-      return new Response(null, { status: 200 });
-    }
-
-    if (result !== "inserted") {
+    if (result !== "inserted" && result !== "duplicate") {
       return textResponse("No pudimos procesar el mensaje.", 503);
     }
 
-    return new Response(null, { status: 202 });
+    if (event.message.tipo === "texto") {
+      let processed;
+
+      try {
+        const extraction = extractTextExpense(
+          event.message.contenido as string,
+          event.message.timestamp,
+        );
+        processed = await dependencies.processText(
+          event.instance,
+          event.message,
+          extraction,
+        );
+      } catch {
+        return textResponse("No pudimos procesar el mensaje.", 503);
+      }
+
+      let claim;
+
+      try {
+        claim = await dependencies.claimReply(processed.inboxId);
+      } catch {
+        return textResponse("No pudimos procesar el mensaje.", 503);
+      }
+
+      if (claim.state !== "claimed") {
+        return new Response(null, {
+          status: result === "inserted" ? 202 : 200,
+        });
+      }
+
+      if (!claim.reply) {
+        return textResponse("No pudimos procesar el mensaje.", 503);
+      }
+
+      try {
+        await dependencies.sendText({
+          phone: event.message.numero_whatsapp,
+          text: claim.reply,
+        });
+      } catch (error) {
+        const terminalOutcome = dependencies.isRejectedDeliveryError(error)
+          ? "rejected" as const
+          : dependencies.isAmbiguousDeliveryError(error)
+          ? "unknown" as const
+          : null;
+
+        if (terminalOutcome === null) {
+          try {
+            await dependencies.releaseReply(
+              processed.inboxId,
+              claim.leaseToken,
+            );
+          } catch {
+            return textResponse("No pudimos procesar el mensaje.", 503);
+          }
+
+          return textResponse("No pudimos procesar el mensaje.", 503);
+        }
+
+        try {
+          await dependencies.completeReply(
+            processed.inboxId,
+            claim.leaseToken,
+            terminalOutcome,
+          );
+        } catch {
+          return textResponse("No pudimos procesar el mensaje.", 503);
+        }
+
+        return new Response(null, {
+          status: result === "inserted" ? 202 : 200,
+        });
+      }
+
+      try {
+        await dependencies.completeReply(
+          processed.inboxId,
+          claim.leaseToken,
+          "delivered",
+        );
+      } catch {
+        return textResponse("No pudimos procesar el mensaje.", 503);
+      }
+    }
+
+    return new Response(null, { status: result === "inserted" ? 202 : 200 });
   };
 }

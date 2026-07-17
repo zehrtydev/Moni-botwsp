@@ -17,7 +17,7 @@ export interface EvolutionClient {
 export class EvolutionDeliveryError extends Error {
   constructor(
     message: string,
-    readonly outcome: "rejected" | "unknown",
+    readonly outcome: "rejected" | "retryable" | "unknown",
   ) {
     super(message);
     this.name = "EvolutionDeliveryError";
@@ -28,13 +28,23 @@ export function isAmbiguousEvolutionError(error: unknown) {
   return error instanceof EvolutionDeliveryError && error.outcome === "unknown";
 }
 
+export function isRejectedEvolutionError(error: unknown) {
+  return error instanceof EvolutionDeliveryError &&
+    error.outcome === "rejected";
+}
+
+export function isRetryableEvolutionError(error: unknown) {
+  return error instanceof EvolutionDeliveryError &&
+    error.outcome === "retryable";
+}
+
 const e164Pattern = /^\+[1-9][0-9]{7,14}$/;
 
 function configurationError() {
   return new Error("La configuracion de Evolution no es valida.");
 }
 
-function deliveryError(outcome: "rejected" | "unknown") {
+function deliveryError(outcome: "rejected" | "retryable" | "unknown") {
   return new EvolutionDeliveryError(
     "Evolution no pudo entregar el mensaje.",
     outcome,
@@ -50,8 +60,7 @@ function parseBaseUrl(rawUrl: string) {
     throw configurationError();
   }
 
-  const localHttp =
-    url.protocol === "http:" &&
+  const localHttp = url.protocol === "http:" &&
     ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
 
   if (
@@ -117,7 +126,9 @@ export function createEvolutionClient(
         );
 
         if (!response.ok) {
-          const outcome = response.status >= 400 && response.status < 500
+          const outcome = [408, 425, 429].includes(response.status)
+            ? "retryable"
+            : response.status >= 400 && response.status < 500
             ? "rejected"
             : "unknown";
           throw deliveryError(outcome);
