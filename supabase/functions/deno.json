@@ -9,6 +9,6 @@
     "standardwebhooks": "npm:standardwebhooks@1.0.0"
   },
   "tasks": {
-    "test": "deno test _shared send-sms"
+    "test": "deno test _shared send-sms evolution-webhook"
   }
 }
