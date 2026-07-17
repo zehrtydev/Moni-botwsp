@@ -151,7 +151,7 @@ describe("verifyPhoneOtpAndLink", () => {
     ).rejects.toEqual(
       new Error("No pudimos vincular el numero verificado."),
     );
-    expect(client.auth.signOut).toHaveBeenCalledOnce();
+    expect(client.auth.signOut).toHaveBeenCalledWith({ scope: "local" });
     expect(client.rpc.mock.invocationCallOrder[0]).toBeLessThan(
       client.auth.signOut.mock.invocationCallOrder[0],
     );
@@ -179,5 +179,20 @@ describe("verifyPhoneOtpAndLink", () => {
     ).rejects.toEqual(
       new Error("No pudimos vincular el numero verificado."),
     );
+  });
+
+  it("keeps the public linking error when local sign out returns an error", async () => {
+    const client = createAuthClient();
+    client.rpc.mockRejectedValue(new Error("network details"));
+    client.auth.signOut.mockResolvedValue({
+      error: new Error("sign out details"),
+    });
+
+    await expect(
+      verifyPhoneOtpAndLink(client, "+573001234567", "123456"),
+    ).rejects.toEqual(
+      new Error("No pudimos vincular el numero verificado."),
+    );
+    expect(client.auth.signOut).toHaveBeenCalledWith({ scope: "local" });
   });
 });
