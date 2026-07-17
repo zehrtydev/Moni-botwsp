@@ -1,6 +1,6 @@
 begin;
 
-select plan(14);
+select plan(18);
 
 select has_table(
   'public',
@@ -13,11 +13,11 @@ select columns_are(
   'sms_hook_eventos',
   array[
     'evento_huella',
+    'creado_en',
     'webhook_id',
     'estado',
     'reclamado_en',
-    'finalizado_en',
-    'creado_en'
+    'finalizado_en'
   ],
   'La deduplicacion solo conserva identificadores opacos y estado'
 );
@@ -43,11 +43,19 @@ select ok(
 );
 
 select results_eq(
-  $$select grantee::text, privilege_type::text
-    from information_schema.role_table_grants
-    where table_schema = 'public'
-      and table_name = 'sms_hook_eventos'
-      and grantee in ('anon', 'authenticated', 'service_role')
+  $$select grantee, privilege_type
+    from (
+      select grantee::text, privilege_type::text
+      from information_schema.role_table_grants
+      where table_schema = 'public'
+        and table_name = 'sms_hook_eventos'
+      union all
+      select grantee::text, privilege_type::text
+      from information_schema.column_privileges
+      where table_schema = 'public'
+        and table_name = 'sms_hook_eventos'
+    ) as privilegios
+    where grantee in ('anon', 'authenticated', 'service_role')
     order by grantee, privilege_type$$,
   $$select null::text, null::text where false$$,
   'Ningun rol de API accede directamente a la tabla'
@@ -131,6 +139,23 @@ select results_eq(
   'Un reintento concurrente no confirma exito prematuramente'
 );
 
+reset role;
+
+update public.sms_hook_eventos
+set reclamado_en = statement_timestamp() - interval '1 minute'
+where evento_huella = repeat('a', 64);
+
+set local role service_role;
+
+select results_eq(
+  $$select public.reclamar_sms_hook_evento(
+      repeat('a', 64),
+      'msg_recovered_lease'
+    )$$,
+  $$values ('reclamado'::text)$$,
+  'Un lease abandonado se puede reclamar de nuevo'
+);
+
 select results_eq(
   $$select public.finalizar_sms_hook_evento(
       repeat('a', 64),
@@ -147,6 +172,30 @@ select results_eq(
     )$$,
   $$values ('finalizado'::text)$$,
   'Otro ID del mismo evento no reenvia el OTP finalizado'
+);
+
+select results_eq(
+  $$select public.reclamar_sms_hook_evento(
+      repeat('b', 64),
+      'msg_rejected'
+    )$$,
+  $$values ('reclamado'::text)$$,
+  'Un segundo evento se reclama antes del rechazo definitivo'
+);
+
+select results_eq(
+  $$select public.liberar_sms_hook_evento(repeat('b', 64))$$,
+  $$values (true)$$,
+  'Un rechazo definitivo libera el evento'
+);
+
+select results_eq(
+  $$select public.reclamar_sms_hook_evento(
+      repeat('b', 64),
+      'msg_rejected_retry'
+    )$$,
+  $$values ('reclamado'::text)$$,
+  'El evento liberado puede reintentarse'
 );
 
 reset role;

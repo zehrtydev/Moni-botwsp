@@ -5,6 +5,7 @@
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@1.0.14",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.110.2",
     "standardwebhooks": "npm:standardwebhooks@1.0.0"
   },
   "tasks": {

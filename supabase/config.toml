@@ -256,13 +256,20 @@ otp_expiry = 3600
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.
-enable_signup = false
+enable_signup = true
 # If enabled, users need to confirm their phone number before signing in.
-enable_confirmations = false
+enable_confirmations = true
 # Template for sending OTP to users
 template = "Your code is {{ `{{ .Code }}` }}"
 # Controls the minimum amount of time that must pass before sending another sms otp.
-max_frequency = "5s"
+max_frequency = "60s"
+
+# Enable only after SEND_SMS_HOOK_SECRET and the Evolution variables are supplied
+# to the local Supabase environment.
+[auth.hook.send_sms]
+enabled = false
+uri = "http://host.docker.internal:54321/functions/v1/send-sms"
+secrets = "env(SEND_SMS_HOOK_SECRET)"
 
 # Use pre-defined map of phone number to OTP for testing.
 # [auth.sms.test_otp]
@@ -361,6 +368,9 @@ enabled = false
 enabled = false
 # Obtain from https://clerk.com/setup/supabase
 # domain = "example.clerk.accounts.dev"
+
+[functions.send-sms]
+verify_jwt = false
 
 # OAuth server configuration
 [auth.oauth_server]
