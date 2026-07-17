@@ -5,13 +5,17 @@ const validPayload = {
   user: { phone: "+573001234567" },
   sms: { otp: "123456" },
 };
+const stableFingerprint = "a".repeat(64);
 
-function signedRequest(body = JSON.stringify(validPayload)) {
+function signedRequest(
+  body = JSON.stringify(validPayload),
+  webhookId = "msg_test",
+) {
   return new Request("http://localhost/functions/v1/send-sms", {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "webhook-id": "msg_test",
+      "webhook-id": webhookId,
       "webhook-signature": "v1,test",
       "webhook-timestamp": "1710000000",
     },
@@ -31,13 +35,23 @@ function verifySignedPayload(payload: string, headers: Headers) {
   return JSON.parse(payload);
 }
 
-Deno.test("Send SMS rejects requests without a valid Standard Webhook", async () => {
-  const handler = createSendSmsHandler({
-    claimDelivery: () => Promise.resolve(true),
+type Dependencies = Parameters<typeof createSendSmsHandler>[0];
+
+function dependencies(overrides: Partial<Dependencies> = {}): Dependencies {
+  return {
+    claimDelivery: () => Promise.resolve("claimed"),
+    completeDelivery: () => Promise.resolve(),
+    fingerprintDelivery: () => Promise.resolve(stableFingerprint),
+    isAmbiguousDeliveryError: () => false,
     releaseDelivery: () => Promise.resolve(),
     sendText: () => Promise.resolve(),
     verify: verifySignedPayload,
-  });
+    ...overrides,
+  };
+}
+
+Deno.test("Send SMS rejects requests without a valid Standard Webhook", async () => {
+  const handler = createSendSmsHandler(dependencies());
   const response = await handler(
     new Request("http://localhost/functions/v1/send-sms", {
       method: "POST",
@@ -51,15 +65,12 @@ Deno.test("Send SMS rejects requests without a valid Standard Webhook", async ()
 
 Deno.test("Send SMS rejects invalid hook payloads", async () => {
   let calls = 0;
-  const handler = createSendSmsHandler({
-    claimDelivery: () => Promise.resolve(true),
-    releaseDelivery: () => Promise.resolve(),
+  const handler = createSendSmsHandler(dependencies({
     sendText: () => {
       calls += 1;
       return Promise.resolve();
     },
-    verify: verifySignedPayload,
-  });
+  }));
   const response = await handler(
     signedRequest(JSON.stringify({
       user: { phone: "3001234567" },
@@ -71,21 +82,36 @@ Deno.test("Send SMS rejects invalid hook payloads", async () => {
   assertEquals(calls, 0);
 });
 
-Deno.test("Send SMS delivers the Supabase OTP through Evolution", async () => {
+Deno.test("Send SMS delivers and completes a stable event fingerprint", async () => {
   const sent: Array<{ phone: string; text: string }> = [];
-  const handler = createSendSmsHandler({
-    claimDelivery: () => Promise.resolve(true),
-    releaseDelivery: () => Promise.resolve(),
+  const claimed: unknown[] = [];
+  const completed: unknown[] = [];
+  const handler = createSendSmsHandler(dependencies({
+    claimDelivery: (delivery) => {
+      claimed.push(delivery);
+      return Promise.resolve("claimed");
+    },
+    completeDelivery: (fingerprint, outcome) => {
+      completed.push({ fingerprint, outcome });
+      return Promise.resolve();
+    },
     sendText: (message) => {
       sent.push(message);
       return Promise.resolve();
     },
-    verify: verifySignedPayload,
-  });
+  }));
   const response = await handler(signedRequest());
 
   assertEquals(response.status, 200);
   assertEquals(await response.text(), "");
+  assertEquals(claimed, [{
+    fingerprint: stableFingerprint,
+    webhookId: "msg_test",
+  }]);
+  assertEquals(completed, [{
+    fingerprint: stableFingerprint,
+    outcome: "delivered",
+  }]);
   assertEquals(sent, [
     {
       phone: "+573001234567",
@@ -94,17 +120,15 @@ Deno.test("Send SMS delivers the Supabase OTP through Evolution", async () => {
   ]);
 });
 
-Deno.test("Send SMS hides Evolution and OTP details on delivery failure", async () => {
+Deno.test("Send SMS releases definitive provider rejections", async () => {
   const released: string[] = [];
-  const handler = createSendSmsHandler({
-    claimDelivery: () => Promise.resolve(true),
-    releaseDelivery: (webhookId) => {
-      released.push(webhookId);
+  const handler = createSendSmsHandler(dependencies({
+    releaseDelivery: (fingerprint) => {
+      released.push(fingerprint);
       return Promise.resolve();
     },
     sendText: () => Promise.reject(new Error("provider private detail")),
-    verify: verifySignedPayload,
-  });
+  }));
   const response = await handler(signedRequest());
   const body = await response.text();
 
@@ -112,39 +136,75 @@ Deno.test("Send SMS hides Evolution and OTP details on delivery failure", async 
   assertEquals(body, "No pudimos entregar el codigo.");
   assertEquals(body.includes("123456"), false);
   assertEquals(body.includes("+573001234567"), false);
-  assertEquals(released, ["msg_test"]);
+  assertEquals(released, [stableFingerprint]);
 });
 
-Deno.test("Send SMS acknowledges duplicate webhook IDs without resending", async () => {
-  const claimed: string[] = [];
-  let sends = 0;
-  const handler = createSendSmsHandler({
-    claimDelivery: (webhookId) => {
-      claimed.push(webhookId);
-      return Promise.resolve(false);
+Deno.test("Send SMS finalizes ambiguous provider outcomes without releasing", async () => {
+  const completed: unknown[] = [];
+  let releases = 0;
+  const ambiguousError = new Error("timeout after provider accepted");
+  const handler = createSendSmsHandler(dependencies({
+    completeDelivery: (fingerprint, outcome) => {
+      completed.push({ fingerprint, outcome });
+      return Promise.resolve();
     },
-    releaseDelivery: () => Promise.resolve(),
+    isAmbiguousDeliveryError: (error) => error === ambiguousError,
+    releaseDelivery: () => {
+      releases += 1;
+      return Promise.resolve();
+    },
+    sendText: () => Promise.reject(ambiguousError),
+  }));
+
+  const response = await handler(signedRequest());
+
+  assertEquals(response.status, 502);
+  assertEquals(completed, [{
+    fingerprint: stableFingerprint,
+    outcome: "indeterminate",
+  }]);
+  assertEquals(releases, 0);
+});
+
+Deno.test("Send SMS deduplicates retry IDs by stable event fingerprint", async () => {
+  const claimed: unknown[] = [];
+  let sends = 0;
+  const handler = createSendSmsHandler(dependencies({
+    claimDelivery: (delivery) => {
+      claimed.push(delivery);
+      return Promise.resolve("completed");
+    },
     sendText: () => {
       sends += 1;
       return Promise.resolve();
     },
-    verify: verifySignedPayload,
-  });
+  }));
 
-  const response = await handler(signedRequest());
+  const first = await handler(signedRequest(undefined, "msg_retry_1"));
+  const second = await handler(signedRequest(undefined, "msg_retry_2"));
 
-  assertEquals(response.status, 200);
-  assertEquals(claimed, ["msg_test"]);
+  assertEquals(first.status, 200);
+  assertEquals(second.status, 200);
+  assertEquals(claimed, [
+    { fingerprint: stableFingerprint, webhookId: "msg_retry_1" },
+    { fingerprint: stableFingerprint, webhookId: "msg_retry_2" },
+  ]);
   assertEquals(sends, 0);
 });
 
+Deno.test("Send SMS asks Supabase to retry while a delivery lease is busy", async () => {
+  const handler = createSendSmsHandler(dependencies({
+    claimDelivery: () => Promise.resolve("busy"),
+  }));
+
+  const response = await handler(signedRequest());
+
+  assertEquals(response.status, 503);
+  assertEquals(response.headers.get("retry-after"), "2");
+});
+
 Deno.test("Send SMS rejects non-POST and oversized requests", async () => {
-  const handler = createSendSmsHandler({
-    claimDelivery: () => Promise.resolve(true),
-    releaseDelivery: () => Promise.resolve(),
-    sendText: () => Promise.resolve(),
-    verify: verifySignedPayload,
-  });
+  const handler = createSendSmsHandler(dependencies());
 
   const methodResponse = await handler(
     new Request("http://localhost/functions/v1/send-sms"),
