@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   createServerSupabaseClient: vi.fn(),
   getClaims: vi.fn(),
+  loadDashboardData: vi.fn(),
   redirect: vi.fn(),
 }));
 
@@ -11,6 +12,9 @@ vi.mock("../../lib/supabase/server", () => ({
   createServerSupabaseClient: mocks.createServerSupabaseClient,
 }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
+vi.mock("../../features/dashboard/dashboard-data", () => ({
+  loadDashboardData: mocks.loadDashboardData,
+}));
 
 import DashboardPage from "./page";
 
@@ -22,6 +26,19 @@ describe("DashboardPage", () => {
     mocks.createServerSupabaseClient.mockResolvedValue({
       auth: { getClaims: mocks.getClaims },
     });
+    mocks.loadDashboardData.mockResolvedValue({
+      profile: { name: "Manuel", phone: "+573001234567" },
+      expenses: [
+        {
+          id: "00000000-0000-4000-8000-000000000099",
+          date: "2026-07-16",
+          amount: 28500,
+          currency: "COP",
+          description: "Almuerzo",
+          category: "Alimentacion",
+        },
+      ],
+    });
   });
 
   it("redirects an unauthenticated request to login", async () => {
@@ -32,6 +49,7 @@ describe("DashboardPage", () => {
 
     await expect(DashboardPage()).resolves.toBeNull();
     expect(mocks.redirect).toHaveBeenCalledWith("/login");
+    expect(mocks.loadDashboardData).not.toHaveBeenCalled();
   });
 
   it("renders a protected landing surface for a valid session", async () => {
@@ -48,6 +66,14 @@ describe("DashboardPage", () => {
       screen.getByRole("heading", { name: "Tu espacio Moni" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Sesion protegida")).toBeInTheDocument();
+    expect(screen.getByText("Hola, Manuel")).toBeInTheDocument();
+    expect(screen.getByText("+573001234567")).toBeInTheDocument();
+    expect(screen.getByText("Almuerzo")).toBeInTheDocument();
+    expect(screen.getByText("Alimentacion")).toBeInTheDocument();
+    expect(mocks.loadDashboardData).toHaveBeenCalledWith(
+      expect.objectContaining({ auth: expect.any(Object) }),
+      "00000000-0000-0000-0000-000000000032",
+    );
     expect(
       screen.getByRole("button", { name: "Cerrar sesion" }),
     ).toBeInTheDocument();
