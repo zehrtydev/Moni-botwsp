@@ -1,7 +1,16 @@
-import { assertEquals, assertThrows } from "@std/assert";
+import { assertEquals, assertRejects } from "@std/assert";
 import { createRelayVerifier } from "./relay-signature.ts";
 
-const secret = ["relay", "secret", "fixture", "for", "tests"].join("-");
+const secret = [
+  "relay",
+  "secret",
+  "fixture",
+  "for",
+  "tests",
+  "only",
+  "not",
+  "production",
+].join("-");
 const payload = JSON.stringify({ provider: "evolution" });
 const timestamp = 1_750_000_000;
 
@@ -33,7 +42,7 @@ Deno.test("Relay verifier accepts a current valid signature", async () => {
     "x-moni-signature": `v1=${await signatureFor(payload)}`,
   });
 
-  assertEquals(verifier(payload, headers), { provider: "evolution" });
+  assertEquals(await verifier(payload, headers), { provider: "evolution" });
 });
 
 Deno.test("Relay verifier rejects tampering, stale, and missing signatures", async () => {
@@ -46,15 +55,15 @@ Deno.test("Relay verifier rejects tampering, stale, and missing signatures", asy
     "x-moni-signature": `v1=${await signatureFor(payload)}`,
   });
 
-  assertThrows(() => verifier(`${payload} `, valid));
+  await assertRejects(() => verifier(`${payload} `, valid));
   const staleSignature = await signatureFor(payload, timestamp - 301);
-  assertThrows(() => verifier(payload, new Headers({
+  await assertRejects(() => verifier(payload, new Headers({
     "x-moni-timestamp": String(timestamp - 301),
     "x-moni-signature": `v1=${staleSignature}`,
   })));
-  assertThrows(() => verifier(payload, new Headers()));
+  await assertRejects(() => verifier(payload, new Headers()));
 });
 
 Deno.test("Relay verifier rejects an invalid configuration secret", async () => {
-  await assertThrows(() => createRelayVerifier("short"));
+  await assertRejects(() => createRelayVerifier("short"));
 });

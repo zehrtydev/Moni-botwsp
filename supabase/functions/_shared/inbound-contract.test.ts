@@ -12,7 +12,7 @@ const valid = {
     media: null,
     timestamp: "2026-07-16T12:00:00.000Z",
   },
-};
+} as const;
 
 Deno.test("Inbound relay contract normalizes a valid text message", () => {
   assertEquals(parseInboundRelayPayload(valid), valid);

@@ -372,6 +372,9 @@ enabled = false
 [functions.send-sms]
 verify_jwt = false
 
+[functions.evolution-webhook]
+verify_jwt = false
+
 # OAuth server configuration
 [auth.oauth_server]
 # Enable OAuth server functionality

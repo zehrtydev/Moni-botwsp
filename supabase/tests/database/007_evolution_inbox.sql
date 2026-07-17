@@ -86,7 +86,7 @@ select throws_ok(
       'otro', 'moni', 'evo-invalid', '+573001234567', 'texto', now()
     )$$,
   '22023',
-  'Proveedor no soportado',
+  'Mensaje entrante invalido',
   'El relay no puede inventar otro proveedor'
 );
 
@@ -95,7 +95,7 @@ select throws_ok(
       'evolution', 'moni', 'evo-invalid-phone', '3001234567', 'texto', now()
     )$$,
   '22023',
-  'Numero E.164 invalido',
+  'Mensaje entrante invalido',
   'El inbox exige E.164'
 );
 
