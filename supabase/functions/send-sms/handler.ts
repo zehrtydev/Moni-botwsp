@@ -4,14 +4,18 @@ interface SendSmsDependencies {
   claimDelivery(delivery: {
     fingerprint: string;
     webhookId: string;
-  }): Promise<"busy" | "claimed" | "completed">;
+  }): Promise<{
+    status: "busy" | "claimed" | "completed";
+    leaseToken: string | null;
+  }>;
   completeDelivery(
     fingerprint: string,
+    leaseToken: string,
     outcome: "delivered" | "indeterminate",
   ): Promise<void>;
   fingerprintDelivery(phone: string, otp: string): Promise<string>;
   isAmbiguousDeliveryError(error: unknown): boolean;
-  releaseDelivery(fingerprint: string): Promise<void>;
+  releaseDelivery(fingerprint: string, leaseToken: string): Promise<void>;
   sendText(message: EvolutionTextMessage): Promise<void>;
   verify(payload: string, headers: Headers): unknown;
 }
@@ -152,7 +156,10 @@ export function createSendSmsHandler(
     }
 
     let fingerprint: string;
-    let claim: "busy" | "claimed" | "completed";
+    let claim: {
+      status: "busy" | "claimed" | "completed";
+      leaseToken: string | null;
+    };
 
     try {
       fingerprint = await dependencies.fingerprintDelivery(
@@ -164,13 +171,19 @@ export function createSendSmsHandler(
       return textResponse("No pudimos procesar la solicitud.", 503);
     }
 
-    if (claim === "completed") {
+    if (claim.status === "completed") {
       return new Response(null, { status: 200 });
     }
 
-    if (claim === "busy") {
+    if (claim.status === "busy") {
       return textResponse("Entrega en proceso.", 503, { "retry-after": "2" });
     }
+
+    if (!claim.leaseToken) {
+      return textResponse("No pudimos procesar la solicitud.", 503);
+    }
+
+    const leaseToken = claim.leaseToken;
 
     try {
       await dependencies.sendText({
@@ -182,9 +195,13 @@ export function createSendSmsHandler(
     } catch (error) {
       try {
         if (dependencies.isAmbiguousDeliveryError(error)) {
-          await dependencies.completeDelivery(fingerprint, "indeterminate");
+          await dependencies.completeDelivery(
+            fingerprint,
+            leaseToken,
+            "indeterminate",
+          );
         } else {
-          await dependencies.releaseDelivery(fingerprint);
+          await dependencies.releaseDelivery(fingerprint, leaseToken);
         }
       } catch {
         return textResponse("No pudimos procesar la solicitud.", 503);
@@ -194,7 +211,7 @@ export function createSendSmsHandler(
     }
 
     try {
-      await dependencies.completeDelivery(fingerprint, "delivered");
+      await dependencies.completeDelivery(fingerprint, leaseToken, "delivered");
     } catch {
       return textResponse("No pudimos procesar la solicitud.", 503);
     }

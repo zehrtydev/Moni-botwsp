@@ -17,6 +17,9 @@ function requiredEnvironment(name: string) {
   return value;
 }
 
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 Deno.serve(async (request) => {
   try {
     const hookSecret = requiredEnvironment("SEND_SMS_HOOK_SECRET");
@@ -48,21 +51,44 @@ Deno.serve(async (request) => {
           },
         );
 
-        if (error || !["reclamado", "finalizado", "ocupado"].includes(data)) {
+        if (
+          error ||
+          !data ||
+          typeof data !== "object" ||
+          Array.isArray(data)
+        ) {
           throw new Error("No se pudo reclamar el evento.");
         }
 
-        return data === "reclamado"
-          ? "claimed"
-          : data === "finalizado"
-          ? "completed"
-          : "busy";
+        const result = data as {
+          estado?: unknown;
+          lease_token?: unknown;
+        };
+
+        if (
+          result.estado === "reclamado" &&
+          typeof result.lease_token === "string" &&
+          uuidPattern.test(result.lease_token)
+        ) {
+          return { status: "claimed" as const, leaseToken: result.lease_token };
+        }
+
+        if (result.estado === "finalizado" && result.lease_token === null) {
+          return { status: "completed" as const, leaseToken: null };
+        }
+
+        if (result.estado === "ocupado" && result.lease_token === null) {
+          return { status: "busy" as const, leaseToken: null };
+        }
+
+        throw new Error("No se pudo reclamar el evento.");
       },
-      completeDelivery: async (fingerprint, outcome) => {
+      completeDelivery: async (fingerprint, leaseToken, outcome) => {
         const { data, error } = await supabase.rpc(
           "finalizar_sms_hook_evento",
           {
             p_evento_huella: fingerprint,
+            p_lease_token: leaseToken,
             p_resultado: outcome === "delivered"
               ? "entregado"
               : "indeterminado",
@@ -75,10 +101,10 @@ Deno.serve(async (request) => {
       },
       fingerprintDelivery,
       isAmbiguousDeliveryError: isAmbiguousEvolutionError,
-      releaseDelivery: async (fingerprint) => {
+      releaseDelivery: async (fingerprint, leaseToken) => {
         const { data, error } = await supabase.rpc(
           "liberar_sms_hook_evento",
-          { p_evento_huella: fingerprint },
+          { p_evento_huella: fingerprint, p_lease_token: leaseToken },
         );
 
         if (error || data !== true) {

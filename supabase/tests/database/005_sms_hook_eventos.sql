@@ -17,7 +17,8 @@ select columns_are(
     'webhook_id',
     'estado',
     'reclamado_en',
-    'finalizado_en'
+    'finalizado_en',
+    'lease_token'
   ],
   'La deduplicacion solo conserva identificadores opacos y estado'
 );
@@ -71,14 +72,14 @@ select has_function(
 select has_function(
   'public',
   'finalizar_sms_hook_evento',
-  array['text', 'text'],
+  array['text', 'uuid', 'text'],
   'La finalizacion atomica existe'
 );
 
 select has_function(
   'public',
   'liberar_sms_hook_evento',
-  array['text'],
+  array['text', 'uuid'],
   'La liberacion de rechazos definitivos existe'
 );
 
@@ -125,7 +126,7 @@ select results_eq(
   $$select public.reclamar_sms_hook_evento(
       repeat('a', 64),
       'msg_first'
-    )$$,
+    )->>'estado'$$,
   $$values ('reclamado'::text)$$,
   'El primer intento reclama el evento'
 );
@@ -134,7 +135,7 @@ select results_eq(
   $$select public.reclamar_sms_hook_evento(
       repeat('a', 64),
       'msg_retry'
-    )$$,
+    )->>'estado'$$,
   $$values ('ocupado'::text)$$,
   'Un reintento concurrente no confirma exito prematuramente'
 );
@@ -145,20 +146,38 @@ update public.sms_hook_eventos
 set reclamado_en = statement_timestamp() - interval '1 minute'
 where evento_huella = repeat('a', 64);
 
+create temp table sms_hook_event_current_tokens (
+  huella text primary key,
+  lease_token uuid not null
+);
+grant select on sms_hook_event_current_tokens to service_role;
+
 set local role service_role;
 
 select results_eq(
   $$select public.reclamar_sms_hook_evento(
       repeat('a', 64),
       'msg_recovered_lease'
-    )$$,
+    )->>'estado'$$,
   $$values ('reclamado'::text)$$,
   'Un lease abandonado se puede reclamar de nuevo'
 );
 
+reset role;
+
+insert into sms_hook_event_current_tokens (huella, lease_token)
+select evento_huella, lease_token
+from public.sms_hook_eventos
+where evento_huella = repeat('a', 64);
+
+set local role service_role;
+
 select results_eq(
   $$select public.finalizar_sms_hook_evento(
       repeat('a', 64),
+      (select lease_token
+       from sms_hook_event_current_tokens
+       where huella = repeat('a', 64)),
       'entregado'
     )$$,
   $$values (true)$$,
@@ -169,7 +188,7 @@ select results_eq(
   $$select public.reclamar_sms_hook_evento(
       repeat('a', 64),
       'msg_new_retry_id'
-    )$$,
+    )->>'estado'$$,
   $$values ('finalizado'::text)$$,
   'Otro ID del mismo evento no reenvia el OTP finalizado'
 );
@@ -178,13 +197,27 @@ select results_eq(
   $$select public.reclamar_sms_hook_evento(
       repeat('b', 64),
       'msg_rejected'
-    )$$,
+    )->>'estado'$$,
   $$values ('reclamado'::text)$$,
   'Un segundo evento se reclama antes del rechazo definitivo'
 );
 
+reset role;
+
+insert into sms_hook_event_current_tokens (huella, lease_token)
+select evento_huella, lease_token
+from public.sms_hook_eventos
+where evento_huella = repeat('b', 64);
+
+set local role service_role;
+
 select results_eq(
-  $$select public.liberar_sms_hook_evento(repeat('b', 64))$$,
+  $$select public.liberar_sms_hook_evento(
+    repeat('b', 64),
+    (select lease_token
+     from sms_hook_event_current_tokens
+     where huella = repeat('b', 64))
+  )$$,
   $$values (true)$$,
   'Un rechazo definitivo libera el evento'
 );
@@ -193,7 +226,7 @@ select results_eq(
   $$select public.reclamar_sms_hook_evento(
       repeat('b', 64),
       'msg_rejected_retry'
-    )$$,
+    )->>'estado'$$,
   $$values ('reclamado'::text)$$,
   'El evento liberado puede reintentarse'
 );

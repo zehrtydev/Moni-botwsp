@@ -6,6 +6,7 @@ const validPayload = {
   sms: { otp: "123456" },
 };
 const stableFingerprint = "a".repeat(64);
+const stableLeaseToken = "11111111-1111-4111-8111-111111111111";
 
 function signedRequest(
   body = JSON.stringify(validPayload),
@@ -39,7 +40,10 @@ type Dependencies = Parameters<typeof createSendSmsHandler>[0];
 
 function dependencies(overrides: Partial<Dependencies> = {}): Dependencies {
   return {
-    claimDelivery: () => Promise.resolve("claimed"),
+    claimDelivery: () => Promise.resolve({
+      status: "claimed" as const,
+      leaseToken: stableLeaseToken,
+    }),
     completeDelivery: () => Promise.resolve(),
     fingerprintDelivery: () => Promise.resolve(stableFingerprint),
     isAmbiguousDeliveryError: () => false,
@@ -89,10 +93,13 @@ Deno.test("Send SMS delivers and completes a stable event fingerprint", async ()
   const handler = createSendSmsHandler(dependencies({
     claimDelivery: (delivery) => {
       claimed.push(delivery);
-      return Promise.resolve("claimed");
+      return Promise.resolve({
+        status: "claimed" as const,
+        leaseToken: stableLeaseToken,
+      });
     },
-    completeDelivery: (fingerprint, outcome) => {
-      completed.push({ fingerprint, outcome });
+    completeDelivery: (fingerprint, leaseToken, outcome) => {
+      completed.push({ fingerprint, leaseToken, outcome });
       return Promise.resolve();
     },
     sendText: (message) => {
@@ -108,9 +115,10 @@ Deno.test("Send SMS delivers and completes a stable event fingerprint", async ()
     fingerprint: stableFingerprint,
     webhookId: "msg_test",
   }]);
-  assertEquals(completed, [{
-    fingerprint: stableFingerprint,
-    outcome: "delivered",
+    assertEquals(completed, [{
+      fingerprint: stableFingerprint,
+      leaseToken: stableLeaseToken,
+      outcome: "delivered",
   }]);
   assertEquals(sent, [
     {
@@ -123,8 +131,8 @@ Deno.test("Send SMS delivers and completes a stable event fingerprint", async ()
 Deno.test("Send SMS releases definitive provider rejections", async () => {
   const released: string[] = [];
   const handler = createSendSmsHandler(dependencies({
-    releaseDelivery: (fingerprint) => {
-      released.push(fingerprint);
+    releaseDelivery: (fingerprint, leaseToken) => {
+      released.push(`${fingerprint}:${leaseToken}`);
       return Promise.resolve();
     },
     sendText: () => Promise.reject(new Error("provider private detail")),
@@ -136,7 +144,9 @@ Deno.test("Send SMS releases definitive provider rejections", async () => {
   assertEquals(body, "No pudimos entregar el codigo.");
   assertEquals(body.includes("123456"), false);
   assertEquals(body.includes("+573001234567"), false);
-  assertEquals(released, [stableFingerprint]);
+  assertEquals(released, [
+    `${stableFingerprint}:11111111-1111-4111-8111-111111111111`,
+  ]);
 });
 
 Deno.test("Send SMS finalizes ambiguous provider outcomes without releasing", async () => {
@@ -144,8 +154,8 @@ Deno.test("Send SMS finalizes ambiguous provider outcomes without releasing", as
   let releases = 0;
   const ambiguousError = new Error("timeout after provider accepted");
   const handler = createSendSmsHandler(dependencies({
-    completeDelivery: (fingerprint, outcome) => {
-      completed.push({ fingerprint, outcome });
+    completeDelivery: (fingerprint, leaseToken, outcome) => {
+      completed.push({ fingerprint, leaseToken, outcome });
       return Promise.resolve();
     },
     isAmbiguousDeliveryError: (error) => error === ambiguousError,
@@ -161,7 +171,8 @@ Deno.test("Send SMS finalizes ambiguous provider outcomes without releasing", as
   assertEquals(response.status, 502);
   assertEquals(completed, [{
     fingerprint: stableFingerprint,
-    outcome: "indeterminate",
+      leaseToken: stableLeaseToken,
+      outcome: "indeterminate",
   }]);
   assertEquals(releases, 0);
 });
@@ -172,7 +183,7 @@ Deno.test("Send SMS deduplicates retry IDs by stable event fingerprint", async (
   const handler = createSendSmsHandler(dependencies({
     claimDelivery: (delivery) => {
       claimed.push(delivery);
-      return Promise.resolve("completed");
+      return Promise.resolve({ status: "completed", leaseToken: null });
     },
     sendText: () => {
       sends += 1;
@@ -194,7 +205,7 @@ Deno.test("Send SMS deduplicates retry IDs by stable event fingerprint", async (
 
 Deno.test("Send SMS asks Supabase to retry while a delivery lease is busy", async () => {
   const handler = createSendSmsHandler(dependencies({
-    claimDelivery: () => Promise.resolve("busy"),
+    claimDelivery: () => Promise.resolve({ status: "busy", leaseToken: null }),
   }));
 
   const response = await handler(signedRequest());
