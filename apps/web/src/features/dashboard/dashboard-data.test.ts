@@ -1,6 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 import { loadDashboardData } from "./dashboard-data";
 
+interface DashboardClientFixture {
+  profile?: {
+    data: { nombre: string | null; numero_whatsapp: string | null } | null;
+    error: Error | null;
+  };
+  expenses?: {
+    data: Array<Record<string, unknown>> | null;
+    error: Error | null;
+  };
+  summary?: {
+    data: Array<{ cantidad: number; monto_total: number }> | null;
+    error: Error | null;
+  };
+}
+
 function createClient({
   profile = {
     data: { nombre: "Manuel", numero_whatsapp: "+573001234567" },
@@ -23,7 +38,7 @@ function createClient({
     data: [{ cantidad: 2, monto_total: 38500 }],
     error: null,
   },
-} = {}) {
+}: DashboardClientFixture = {}) {
   const profileQuery = {
     select: vi.fn(),
     eq: vi.fn(),
@@ -127,5 +142,30 @@ describe("loadDashboardData", () => {
         "00000000-0000-0000-0000-000000000032",
       ),
     ).rejects.toThrow("No pudimos cargar tu dashboard.");
+  });
+
+  it("keeps historical expenses readable when a category is inactive", async () => {
+    const { client } = createClient({
+      expenses: {
+        data: [
+          {
+            id: "00000000-0000-4000-8000-000000000098",
+            fecha_gasto: "2026-07-12",
+            monto: 12000,
+            moneda: "COP",
+            descripcion: "Categoria archivada",
+            categorias: null,
+          },
+        ],
+        error: null,
+      },
+    });
+
+    const result = await loadDashboardData(
+      client as never,
+      "00000000-0000-0000-0000-000000000032",
+    );
+
+    expect(result?.expenses[0].category).toBe("Sin categoria");
   });
 });

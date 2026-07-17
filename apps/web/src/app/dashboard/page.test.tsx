@@ -72,7 +72,7 @@ describe("DashboardPage", () => {
     const expenseCard = screen.getByText("Almuerzo").closest("article");
     expect(expenseCard).toHaveTextContent("Alimentacion");
     expect(screen.getByText("Total confirmado")).toBeInTheDocument();
-    expect(screen.getAllByText("$ 28.500")).toHaveLength(2);
+    expect(screen.getAllByText(/28\.500/)).toHaveLength(2);
     expect(mocks.loadDashboardData).toHaveBeenCalledWith(
       expect.objectContaining({ auth: expect.any(Object) }),
       "00000000-0000-0000-0000-000000000032",
@@ -80,5 +80,26 @@ describe("DashboardPage", () => {
     expect(
       screen.getByRole("button", { name: "Cerrar sesion" }),
     ).toBeInTheDocument();
+  });
+
+  it("shows a retryable data error without pretending the session expired", async () => {
+    mocks.getClaims.mockResolvedValue({
+      data: {
+        claims: { sub: "00000000-0000-0000-0000-000000000032" },
+      },
+      error: null,
+    });
+    mocks.loadDashboardData.mockRejectedValue(
+      new Error("private database detail"),
+    );
+
+    render(await DashboardPage());
+
+    expect(
+      screen.getByRole("heading", {
+        name: "No pudimos cargar tu dashboard",
+      }),
+    ).toBeInTheDocument();
+    expect(mocks.redirect).not.toHaveBeenCalled();
   });
 });

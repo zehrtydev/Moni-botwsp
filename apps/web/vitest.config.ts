@@ -12,6 +12,7 @@ export default defineConfig({
         "src/app/login/actions.ts",
         "src/app/login/login-form.tsx",
         "src/features/auth/*.ts",
+        "src/features/dashboard/*.ts",
         "src/lib/phone.ts",
         "src/lib/supabase/config.ts",
         "src/lib/supabase/proxy.ts",

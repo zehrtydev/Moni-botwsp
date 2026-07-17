@@ -83,6 +83,133 @@
   line-height: 1.65;
 }
 
+.statusCard strong {
+  color: #dfffea;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 22px;
+}
+
+.metrics article {
+  padding: 24px;
+  border: 1px solid rgba(174, 255, 206, 0.12);
+  border-radius: 18px;
+  background: rgba(12, 26, 19, 0.68);
+}
+
+.metrics p {
+  color: #829087;
+  font-size: 13px;
+}
+
+.metrics strong {
+  display: block;
+  margin-top: 9px;
+  color: #72f6a8;
+  font-family: var(--font-geist-mono);
+  font-size: clamp(22px, 5vw, 32px);
+}
+
+.expenses {
+  margin-top: 22px;
+  padding: 28px;
+  border: 1px solid rgba(174, 255, 206, 0.12);
+  border-radius: 22px;
+  background: rgba(10, 23, 16, 0.75);
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 20px;
+}
+
+.sectionHeading h2 {
+  color: #f4fff8;
+  font-size: 24px;
+}
+
+.sectionHeading > span {
+  color: #829087;
+  font-size: 13px;
+}
+
+.expenseList {
+  display: grid;
+}
+
+.expense {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 0;
+  border-top: 1px solid rgba(174, 255, 206, 0.09);
+}
+
+.expense h3 {
+  color: #eafff0;
+  font-size: 16px;
+}
+
+.expense p,
+.empty {
+  margin-top: 6px;
+  color: #829087;
+  font-size: 13px;
+}
+
+.expense > strong {
+  color: #72f6a8;
+  font-family: var(--font-geist-mono);
+  white-space: nowrap;
+}
+
+.empty {
+  padding: 28px 0 8px;
+  border-top: 1px solid rgba(174, 255, 206, 0.09);
+  line-height: 1.6;
+}
+
+.errorCard {
+  width: min(100%, 580px);
+  margin: 15vh auto 0;
+  padding: 32px;
+  border: 1px solid rgba(255, 164, 164, 0.2);
+  border-radius: 22px;
+  background: rgba(31, 15, 17, 0.9);
+}
+
+.errorCard h1 {
+  color: #fff5f5;
+  font-size: clamp(28px, 6vw, 40px);
+  letter-spacing: -0.035em;
+}
+
+.errorCard > p:not(.eyebrow) {
+  margin-top: 12px;
+  color: #c9b5b5;
+  line-height: 1.65;
+}
+
+.errorCard a {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  margin-top: 24px;
+  padding: 0 18px;
+  border-radius: 12px;
+  color: #07120d;
+  background: #72f6a8;
+  font-weight: 750;
+}
+
 @media (max-width: 620px) {
   .header {
     align-items: flex-start;
@@ -99,5 +226,19 @@
 
   .statusCard {
     padding: 22px;
+  }
+
+  .expenses {
+    padding: 22px;
+  }
+
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .expense {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
   }
 }
