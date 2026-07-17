@@ -9,7 +9,7 @@ function createClient({
   expenses = {
     data: [
       {
-        id: "00000000-0000-0000-0000-000000000099",
+        id: "00000000-0000-4000-8000-000000000099",
         fecha_gasto: "2026-07-16",
         monto: 28500,
         moneda: "COP",
@@ -17,6 +17,10 @@ function createClient({
         categorias: { nombre: "Alimentacion" },
       },
     ],
+    error: null,
+  },
+  summary = {
+    data: [{ cantidad: 2, monto_total: 38500 }],
     error: null,
   },
 } = {}) {
@@ -42,6 +46,7 @@ function createClient({
     from: vi.fn((table: string) =>
       table === "usuarios" ? profileQuery : expenseQuery,
     ),
+    rpc: vi.fn().mockResolvedValue(summary),
   };
 
   return { client, expenseQuery, profileQuery };
@@ -58,9 +63,10 @@ describe("loadDashboardData", () => {
       ),
     ).resolves.toEqual({
       profile: { name: "Manuel", phone: "+573001234567" },
+      summary: { count: 2, totalAmount: 38500 },
       expenses: [
         {
-          id: "00000000-0000-0000-0000-000000000099",
+          id: "00000000-0000-4000-8000-000000000099",
           date: "2026-07-16",
           amount: 28500,
           currency: "COP",
@@ -83,6 +89,10 @@ describe("loadDashboardData", () => {
     );
     expect(expenseQuery.eq).toHaveBeenCalledWith("estado", "confirmado");
     expect(expenseQuery.limit).toHaveBeenCalledWith(8);
+    expect(client.rpc).toHaveBeenCalledWith(
+      "resumen_gastos_confirmados",
+      { p_categoria_id: null, p_desde: null, p_hasta: null },
+    );
   });
 
   it("returns null and does not read expenses for an unlinked profile", async () => {
@@ -100,6 +110,7 @@ describe("loadDashboardData", () => {
       ),
     ).resolves.toBeNull();
     expect(client.from).toHaveBeenCalledTimes(1);
+    expect(client.rpc).not.toHaveBeenCalled();
   });
 
   it("does not expose database details when a query fails", async () => {

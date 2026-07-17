@@ -28,6 +28,7 @@ describe("DashboardPage", () => {
     });
     mocks.loadDashboardData.mockResolvedValue({
       profile: { name: "Manuel", phone: "+573001234567" },
+      summary: { count: 1, totalAmount: 28500 },
       expenses: [
         {
           id: "00000000-0000-4000-8000-000000000099",
@@ -65,11 +66,11 @@ describe("DashboardPage", () => {
     expect(
       screen.getByRole("heading", { name: "Tu espacio Moni" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Sesion protegida")).toBeInTheDocument();
-    expect(screen.getByText("Hola, Manuel")).toBeInTheDocument();
+    const sessionCard = screen.getByText("Sesion protegida").parentElement;
+    expect(sessionCard).toHaveTextContent("Hola, Manuel");
     expect(screen.getByText("+573001234567")).toBeInTheDocument();
-    expect(screen.getByText("Almuerzo")).toBeInTheDocument();
-    expect(screen.getByText("Alimentacion")).toBeInTheDocument();
+    const expenseCard = screen.getByText("Almuerzo").closest("article");
+    expect(expenseCard).toHaveTextContent("Alimentacion");
     expect(mocks.loadDashboardData).toHaveBeenCalledWith(
       expect.objectContaining({ auth: expect.any(Object) }),
       "00000000-0000-0000-0000-000000000032",
