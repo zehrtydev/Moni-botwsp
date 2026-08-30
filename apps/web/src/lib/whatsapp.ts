@@ -24,8 +24,9 @@ export function normalizeEvolutionPayload(payload: unknown) {
   const message = data.message as Record<string, unknown> | undefined;
   const remoteJid = typeof key?.remoteJid === "string" ? key.remoteJid : "";
   const alternateJid = typeof key?.remoteJidAlt === "string" ? key.remoteJidAlt : "";
-  const senderJid = typeof data.sender === "string" ? data.sender : "";
-  const contactJid = remoteJid.endsWith("@lid") ? alternateJid || senderJid : remoteJid;
+  // Evolution puede incluir `sender` apuntando al número de la instancia.
+  // Para un chat LID solo `remoteJidAlt` identifica de forma segura al usuario.
+  const contactJid = remoteJid.endsWith("@lid") ? alternateJid : remoteJid;
   const number = contactJid.replace(/@(s\.whatsapp\.net|c\.us)$/, "");
   if (key?.fromMe === true || !key?.id || (!/^\+[1-9][0-9]{7,14}$/.test(`+${number}`) && !remoteJid.endsWith("@lid"))) return { kind: "ignored" as const };
   const content = typeof message?.conversation === "string"
