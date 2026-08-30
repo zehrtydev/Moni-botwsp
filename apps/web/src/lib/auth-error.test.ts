@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getAuthErrorMessage } from "./auth-error";
+import { getAuthErrorMessage, getSignupSuccessMessage } from "./auth-error";
 
 describe("getAuthErrorMessage", () => {
   it("does not render an empty object when Supabase returns an unknown error shape", () => {
@@ -16,5 +16,13 @@ describe("getAuthErrorMessage", () => {
     expect(getAuthErrorMessage({ message: "Database error saving new user" }, true)).toBe(
       "No se pudo crear la cuenta. Revisa los datos e inténtalo de nuevo.",
     );
+  });
+
+  it("uses a success message without email confirmation when a session exists", () => {
+    expect(getSignupSuccessMessage(true)).toBe("Cuenta creada correctamente. Ya puedes comenzar.");
+  });
+
+  it("keeps the confirmation message when Supabase requires email confirmation", () => {
+    expect(getSignupSuccessMessage(false)).toBe("Cuenta creada. Revisa tu correo si Supabase solicita confirmación.");
   });
 });

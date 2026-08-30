@@ -19,3 +19,7 @@ export function getAuthErrorMessage(error: unknown, registering: boolean): strin
 
   return registering ? "No se pudo crear la cuenta. Revisa los datos e inténtalo de nuevo." : "No se pudo iniciar sesión.";
 }
+
+export function getSignupSuccessMessage(hasSession: boolean): string {
+  return hasSession ? "Cuenta creada correctamente. Ya puedes comenzar." : "Cuenta creada. Revisa tu correo si Supabase solicita confirmación.";
+}

@@ -21,7 +21,7 @@ button, .button-link { display: inline-flex; justify-content: center; border: 0;
 button:disabled { opacity: .65; cursor: wait; }
 .button-link { margin-top: 24px; }
 .secondary-button { background: transparent; color: var(--purple-dark); border: 1px solid #ded9ef; box-shadow: none; }
-.error { color: #b42318; font-size: .9rem; }
+.error { color: #b42318; font-size: .9rem; }.notice { color: #32775d; font-size: .9rem; }
 .state-page { min-height: 70vh; display: grid; place-items: center; }.state-card, .loading-card { width: min(100%, 520px); text-align: center; }.state-card { display: grid; justify-items: center; gap: 10px; }.state-card h1 { font-size: clamp(2rem, 7vw, 3.2rem); }.state-card button { margin-top: 10px; }.state-icon { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 18px; }.state-icon-error { color: #a5544e; background: #ffe0dc; }.loading-card { display: grid; gap: 16px; }.loading-pulse, .loading-line { display: block; border-radius: 999px; background: linear-gradient(90deg, #e8e4f0, #f7f5fb, #e8e4f0); background-size: 200% 100%; animation: loading-shimmer 1.3s ease-in-out infinite; }.loading-pulse { width: 58px; height: 58px; margin: 0 auto 8px; border-radius: 20px; }.loading-line { width: 82%; height: 15px; margin: 0 auto; }.loading-line-short { width: 38%; height: 11px; }.loading-line-medium { width: 62%; } @keyframes loading-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 .dashboard-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 30px; }
 .header-actions { display: flex; align-items: center; gap: 12px; }

@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { getAuthErrorMessage } from "@/lib/auth-error";
+import { getAuthErrorMessage, getSignupSuccessMessage } from "@/lib/auth-error";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,11 +11,12 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [registering, setRegistering] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setError(null); setLoading(true);
+    event.preventDefault(); setError(null); setNotice(null); setLoading(true);
     try {
       const supabase = createSupabaseBrowserClient();
       if (registering) {
@@ -24,7 +25,7 @@ export default function LoginPage() {
           setError("Escribe tu nombre para crear la cuenta.");
           return;
         }
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { data: { session }, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -33,7 +34,12 @@ export default function LoginPage() {
           },
         });
         if (signUpError) throw signUpError;
-        setError("Cuenta creada. Revisa tu correo si Supabase solicita confirmación.");
+        if (session) {
+          router.replace("/dashboard");
+          router.refresh();
+        } else {
+          setNotice(getSignupSuccessMessage(false));
+        }
         return;
       }
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
@@ -56,8 +62,9 @@ export default function LoginPage() {
       {registering && <label>Nombre<input type="text" value={name} onChange={(event) => setName(event.target.value)} required minLength={2} maxLength={100} autoComplete="name" /></label>}
       <label>Contraseña<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={6} /></label>
       {error && <p className="error" role="alert">{error}</p>}
+      {notice && <p className="notice" role="status">{notice}</p>}
       <button type="submit" disabled={loading}>{loading ? "Procesando…" : registering ? "Crear cuenta" : "Entrar"}</button>
-      <button type="button" className="secondary-button" onClick={() => { setRegistering((value) => !value); setError(null); }}>
+      <button type="button" className="secondary-button" onClick={() => { setRegistering((value) => !value); setError(null); setNotice(null); }}>
         {registering ? "Ya tengo cuenta" : "Crear una cuenta"}
       </button>
     </form>
