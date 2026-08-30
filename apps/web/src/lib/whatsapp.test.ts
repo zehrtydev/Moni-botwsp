@@ -45,8 +45,9 @@ describe("WhatsApp webhook contract", () => {
   it("uses Evolution sender to resolve a LID payload when multiple users are linked", () => {
     const result = normalizeEvolutionPayload({
       event: "messages.upsert", instance: "moni-local",
+      sender: "573001234567@s.whatsapp.net",
       data: { key: { id: "msg-lid-sender", remoteJid: "51629868974162@lid", fromMe: false },
-        sender: "573001234567@s.whatsapp.net", message: { conversation: "Hola" }, messageTimestamp: 1_756_500_000 },
+        message: { conversation: "Hola" }, messageTimestamp: 1_756_500_000 },
     });
     expect(result.kind).toBe("message");
     if (result.kind === "message") expect(result.message.numero_whatsapp).toBe("+573001234567");
