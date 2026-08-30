@@ -7,6 +7,7 @@ export async function sendEvolutionText(number: string, text: string) {
     method: "POST",
     headers: { apikey: apiKey, "Content-Type": "application/json" },
     body: JSON.stringify({ number: number.replace(/^\+/, ""), text }),
+    signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) throw new Error(`Evolution API respondió ${response.status}.`);
 }
@@ -22,6 +23,7 @@ export async function sendEvolutionButtons(number: string, title: string, descri
     method: "POST",
     headers: { apikey: apiKey, "Content-Type": "application/json" },
     body: JSON.stringify({ number: number.replace(/^\+/, ""), title, description, footer, buttons }),
+    signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) throw new Error(`Evolution API respondió ${response.status} al enviar botones.`);
 }

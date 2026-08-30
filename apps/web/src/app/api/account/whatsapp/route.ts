@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
+import { sendEvolutionText } from "@/lib/evolution";
+import { welcomeMessage } from "@/lib/whatsapp-messages";
 
 const bodySchema = z.object({ numero_whatsapp: z.string().regex(/^\+[1-9][0-9]{7,14}$/) });
 
@@ -16,7 +18,16 @@ export async function POST(request: Request) {
       id: user.id,
       numero_whatsapp: parsed.data.numero_whatsapp,
       numero_whatsapp_actualizado_en: new Date().toISOString(),
-    }, { onConflict: "id" });
+  }, { onConflict: "id" });
   if (error) return NextResponse.json({ success: false, error: "No se pudo vincular el número" }, { status: 409 });
-  return NextResponse.json({ success: true });
+
+  let welcomeSent = false;
+  try {
+    await sendEvolutionText(parsed.data.numero_whatsapp, welcomeMessage);
+    welcomeSent = true;
+  } catch (welcomeError) {
+    console.error("No se pudo enviar el mensaje de bienvenida", welcomeError);
+  }
+
+  return NextResponse.json({ success: true, welcomeSent });
 }

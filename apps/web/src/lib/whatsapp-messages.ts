@@ -4,6 +4,8 @@ export const greetingMessages = [
   "¡Hola! ✨ Soy Moni. Vamos a tener tus gastos bajo control 💜\n\nCuéntame algo como:\n💸 Compré un almuerzo por 15 mil\n🎯 Presupuesto de alimentación 500 mil",
 ] as const;
 
+export const welcomeMessage = "¡Bienvenido a tu espacio financiero! 👋💜\n\nYa puedes registrar tu primer gasto escribiéndome algo como:\n💸 Gasté 20 lucas en almuerzo\n\nYo lo reviso contigo antes de guardarlo 😊";
+
 export const correctionSuccessMessages = [
   "¡Listo! ✨ Corregí tu último gasto correctamente.",
   "¡Hecho! 🛠️ Actualicé ese gasto por ti.",
