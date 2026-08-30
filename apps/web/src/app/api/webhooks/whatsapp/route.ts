@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { extractExpenseDraft } from "@/lib/expense-parser";
+import { extractIncomeDraft } from "@/lib/income-parser";
 import { interpretExpenseWithAI } from "@/lib/ai-expense-interpreter";
 import { isBudgetCommand, parseBudgetCommand } from "@/lib/budget-parser";
 import { isCorrectionCommand, isGreeting, isThanks, parseCorrectionCommand, parseExpenseQuery } from "@/lib/whatsapp-commands";
 import { sendEvolutionButtons, sendEvolutionText } from "@/lib/evolution";
 import { incomingMessageSchema, normalizeEvolutionPayload, verifyWebhookSecretHeader, verifyWebhookSignature } from "@/lib/whatsapp";
-import { buildExpenseProposal, correctionHelpMessages, correctionSuccessMessages, expenseNotUnderstoodMessages, greetingMessages, pickMessage, thanksMessages } from "@/lib/whatsapp-messages";
+import { buildExpenseProposal, buildIncomeProposal, correctionHelpMessages, correctionSuccessMessages, expenseNotUnderstoodMessages, greetingMessages, pickMessage, thanksMessages } from "@/lib/whatsapp-messages";
 import { hashPairingCode, isPairingCode } from "@/lib/whatsapp-pairing";
 
 export const runtime = "nodejs";
@@ -16,9 +17,9 @@ async function reply(number: string, text: string) {
   catch (error) { console.error("whatsapp_reply_failed", error); }
 }
 
-async function replyWithConfirmationButtons(number: string, text: string) {
+async function replyWithConfirmationButtons(number: string, text: string, title = "Confirmar movimiento") {
   try {
-    await sendEvolutionButtons(number, "Confirmar gasto", text, "También puedes escribir sí o no.", [
+    await sendEvolutionButtons(number, title, text, "También puedes escribir sí o no.", [
       { id: "confirm_expense", title: "✅ Sí, guardar", displayText: "✅ Sí, guardar" },
       { id: "reject_expense", title: "❌ No, descartar", displayText: "❌ No, descartar" },
     ]);
@@ -26,6 +27,46 @@ async function replyWithConfirmationButtons(number: string, text: string) {
     console.warn("whatsapp_buttons_unavailable", error instanceof Error ? error.message : "unknown_error");
     await reply(number, `${text}\n\n1️⃣ Sí, guardar\n2️⃣ No, descartar`);
   }
+}
+
+async function processIncomeMessage(supabase: ReturnType<typeof createSupabaseAdminClient>, userId: string, number: string, message: { mensaje_origen_id: string; contenido: string; timestamp: string }) {
+  const { data: active } = await supabase.from("ingresos").select("id, monto, estado").eq("usuario_id", userId).eq("estado", "pendiente_confirmacion").maybeSingle();
+  const command = message.contenido.trim().toLocaleLowerCase("es").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (active) {
+    if (["si", "sí", "confirmar", "confirmado", "1", "confirm_expense"].includes(command)) {
+      const { error } = await supabase.from("ingresos").update({ estado: "confirmado", confirmado_en: new Date().toISOString() }).eq("id", active.id).eq("usuario_id", userId);
+      if (error) throw error;
+      await reply(number, `¡Ingreso confirmado! ✅\n$${Number(active.monto).toLocaleString("es-CO")} COP sumados a tu balance 💜`);
+      return true;
+    }
+    if (["no", "cancelar", "descartar", "2", "reject_expense"].includes(command)) {
+      const { error } = await supabase.from("ingresos").update({ estado: "rechazado" }).eq("id", active.id).eq("usuario_id", userId);
+      if (error) throw error;
+      await reply(number, "Listo, descarté ese ingreso 🗑️");
+      return true;
+    }
+    await reply(number, "Casi listo 😊 Responde *sí* para sumar el ingreso o *no* para descartarlo.");
+    return true;
+  }
+
+  const draft = extractIncomeDraft(message.contenido, new Date(message.timestamp));
+  if (!draft) return false;
+  const { data: category } = await supabase.from("categorias_ingreso").select("id").eq("nombre", draft.categoria).maybeSingle();
+  if (!category) throw new Error(`Categoría de ingreso no configurada: ${draft.categoria}`);
+  const { error } = await supabase.from("ingresos").insert({
+    usuario_id: userId,
+    fecha_ingreso: draft.fecha_ingreso,
+    monto: draft.monto,
+    categoria_id: category.id,
+    descripcion: draft.descripcion,
+    estado: "pendiente_confirmacion",
+    origen: "texto",
+    texto_original: message.contenido,
+    mensaje_origen_id: message.mensaje_origen_id,
+  });
+  if (error) throw error;
+  await replyWithConfirmationButtons(number, buildIncomeProposal(draft.monto, draft.categoria, draft.descripcion), "Confirmar ingreso");
+  return true;
 }
 
 function currentMonthStart() {
@@ -105,6 +146,7 @@ async function processExpenseMessage(supabase: ReturnType<typeof createSupabaseA
     await reply(message.numero_whatsapp, "¡Hola! 👋 Tu número todavía no está vinculado a Moni. Regístralo desde el dashboard para comenzar 💜");
     return null;
   }
+  if (await processIncomeMessage(supabase, user.id, message.numero_whatsapp, message)) return null;
   if (await processBudgetCommand(supabase, user.id, message.numero_whatsapp, message.contenido.trim())) return null;
   if (await processCorrectionCommand(supabase, user.id, message.numero_whatsapp, message.contenido.trim())) return null;
   if (await processExpenseQuery(supabase, user.id, message.numero_whatsapp, message.contenido.trim())) return null;

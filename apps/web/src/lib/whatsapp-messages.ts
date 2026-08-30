@@ -46,3 +46,8 @@ export function buildExpenseProposal(monto: number, categoria: string, descripci
     `¡Listo, revisemos este gasto! ✨\n\n${amount} · ${categoria}\n📝 ${descripcion}\n\nConfírmame con *sí* para guardarlo o *no* para descartarlo.`,
   ]);
 }
+
+export function buildIncomeProposal(monto: number, categoria: string, descripcion: string) {
+  const amount = `$${monto.toLocaleString("es-CO")} COP`;
+  return `Entendí este ingreso 💰\n\n${amount} en ${categoria}\n📝 ${descripcion}\n\n¿Lo guardo? Responde *sí* o *no* 😊`;
+}
