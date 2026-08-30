@@ -1,11 +1,31 @@
-node_modules/
-.next/
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-*.tsbuildinfo
-coverage/
-playwright-report/
-test-results/
+# Local secrets and environment files
+**/.env
+**/.env.*
+!**/.env.example
+
+# Dependencies and generated output
+**/node_modules/
+**/.next/
+**/out/
+**/build/
+**/coverage/
+**/test-results/
+**/playwright-report/
+**/*.tsbuildinfo
+
+# Local Supabase state
+supabase/.temp/
+supabase/.branches/
+
+# Local agent/workspace material
+.agents/
+.opencode/
+publish-staging/
+skills/
+
+# Editors and OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
