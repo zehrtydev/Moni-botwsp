@@ -7,6 +7,7 @@ import { isCorrectionCommand, isGreeting, isThanks, parseCorrectionCommand, pars
 import { sendEvolutionButtons, sendEvolutionText } from "@/lib/evolution";
 import { incomingMessageSchema, normalizeEvolutionPayload, verifyWebhookSecretHeader, verifyWebhookSignature } from "@/lib/whatsapp";
 import { buildExpenseProposal, correctionHelpMessages, correctionSuccessMessages, expenseNotUnderstoodMessages, greetingMessages, pickMessage, thanksMessages } from "@/lib/whatsapp-messages";
+import { hashPairingCode, isPairingCode } from "@/lib/whatsapp-pairing";
 
 export const runtime = "nodejs";
 
@@ -200,6 +201,31 @@ export async function POST(request: Request) {
   if (evolution.kind === "lid") {
     const admin = createSupabaseAdminClient();
     const instance = request.headers.get("x-whatsapp-instance") ?? evolution.instance;
+
+    if (isPairingCode(evolution.message.contenido)) {
+      const { data: pendingPairing, error: pairingError } = await admin
+        .from("whatsapp_vinculaciones_pendientes")
+        .select("id, usuario_id, numero_whatsapp")
+        .eq("codigo_hash", hashPairingCode(evolution.message.contenido))
+        .is("usado_en", null)
+        .gt("expira_en", new Date().toISOString())
+        .maybeSingle();
+      if (pairingError) return NextResponse.json({ success: false, error: "No se pudo validar el código" }, { status: 500 });
+      if (pendingPairing) {
+        const { error: mappingError } = await admin.from("whatsapp_contactos_lid").upsert({
+          instancia: instance,
+          lid: evolution.lid,
+          numero_whatsapp: pendingPairing.numero_whatsapp,
+          actualizado_en: new Date().toISOString(),
+        }, { onConflict: "instancia,lid" });
+        if (mappingError) return NextResponse.json({ success: false, error: "No se pudo asociar el contacto" }, { status: 500 });
+        const { error: usedError } = await admin.from("whatsapp_vinculaciones_pendientes").update({ usado_en: new Date().toISOString() }).eq("id", pendingPairing.id);
+        if (usedError) return NextResponse.json({ success: false, error: "No se pudo completar la vinculación" }, { status: 500 });
+        await reply(pendingPairing.numero_whatsapp, "¡Listo! ✅ Este chat ya está conectado con tu cuenta de Moni 💜\n\nAhora puedes enviarme tu primer gasto, por ejemplo: *Gasté 20 lucas en almuerzo*.");
+        return NextResponse.json({ success: true, paired: true }, { status: 202 });
+      }
+    }
+
     const { data: knownContact, error: knownContactError } = await admin.from("whatsapp_contactos_lid").select("numero_whatsapp").eq("instancia", instance).eq("lid", evolution.lid).maybeSingle();
     if (knownContactError) return NextResponse.json({ success: false, error: "No se pudo resolver el contacto" }, { status: 500 });
     let resolvedNumber = knownContact?.numero_whatsapp;

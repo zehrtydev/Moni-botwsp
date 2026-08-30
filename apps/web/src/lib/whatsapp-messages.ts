@@ -6,6 +6,10 @@ export const greetingMessages = [
 
 export const welcomeMessage = "¡Bienvenido a tu espacio financiero! 👋💜\n\nYa puedes registrar tu primer gasto escribiéndome algo como:\n💸 Gasté 20 lucas en almuerzo\n\nYo lo reviso contigo antes de guardarlo 😊";
 
+export function buildPairingMessage(code: string) {
+  return `¡Bienvenido a tu espacio financiero! 👋💜\n\nPara conectar este chat con tu cuenta, responde con este código:\n🔐 *${code}*\n\nDespués podrás registrar gastos normalmente, por ejemplo:\n💸 Gasté 20 lucas en almuerzo`;
+}
+
 export const correctionSuccessMessages = [
   "¡Listo! ✨ Corregí tu último gasto correctamente.",
   "¡Hecho! 🛠️ Actualicé ese gasto por ti.",
