@@ -7,6 +7,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -17,7 +18,16 @@ export default function LoginPage() {
     try {
       const supabase = createSupabaseBrowserClient();
       if (registering) {
-        const { error: signUpError } = await supabase.auth.signUp({ email, password });
+        const normalizedName = name.trim();
+        if (normalizedName.length < 2) {
+          setError("Escribe tu nombre para crear la cuenta.");
+          return;
+        }
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { nombre: normalizedName } },
+        });
         if (signUpError) throw signUpError;
         setError("Cuenta creada. Revisa tu correo si Supabase solicita confirmación.");
         return;
@@ -35,6 +45,7 @@ export default function LoginPage() {
     <p className="muted">{registering ? "Crea tu cuenta para comenzar." : "Base de autenticación lista para conectar el flujo de WhatsApp."}</p>
     <form onSubmit={handleSubmit} className="form-stack">
       <label>Correo electrónico<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
+      {registering && <label>Nombre<input type="text" value={name} onChange={(event) => setName(event.target.value)} required minLength={2} maxLength={100} autoComplete="name" /></label>}
       <label>Contraseña<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={6} /></label>
       {error && <p className="error" role="alert">{error}</p>}
       <button type="submit" disabled={loading}>{loading ? "Procesando…" : registering ? "Crear cuenta" : "Entrar"}</button>

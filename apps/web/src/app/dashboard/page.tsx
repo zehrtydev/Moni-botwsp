@@ -66,7 +66,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const topCategoryTotal = topCategories[0]?.[1] ?? 0;
   const categoryChartData = Object.entries(categoryTotals).sort(([, first], [, second]) => second - first).map(([name, total]) => ({ name, total }));
   const budgetsByCategory = new Map((budgets ?? []).map((budget) => [budget.categoria_id, Number(budget.monto_limite)]));
-  const userName = profile?.nombre?.trim().split(" ")[0] || "Manuel";
+  const userName = profile?.nombre?.trim().split(" ")[0] || "Usuario";
 
   return <main className="dashboard-shell">
     <header className="dashboard-header"><div><p className="brand-mark"><span className="brand-dot" /> moni</p><p className="eyebrow">Tu espacio financiero</p><h1>Hola, {userName} <Sparkles className="title-icon" size={27} aria-hidden="true" /></h1><p className="muted">Esto es lo que está pasando con tus gastos.</p></div><div className="header-actions"><SectionLink href="/estadisticas" label="Estadísticas" icon={BarChart3} /><SectionLink href="/presupuestos" label="Presupuestos" icon={PiggyBank} /><SignOutButton /></div></header>
