@@ -43,6 +43,33 @@ $bytes = New-Object byte[] 32
 - [ ] `npm ci`, tests, build y `npm audit --audit-level=high` pasan.
 - [ ] Pruebas manuales de registro, confirmación, corrección y consulta completadas.
 - [ ] Rate limiting y monitoreo definidos para el webhook.
+- [ ] Monitor externo configurado contra `GET /api/health`.
+- [ ] Se ejecutó una restauración de prueba en un proyecto o base separada.
+
+## Backups y recuperación
+
+El backup de Supabase debe estar habilitado en el proyecto hosted según el proveedor contratado. Para Moni no basta con confirmar que existe un backup: hay que probar que se puede restaurar.
+
+Procedimiento mínimo mensual:
+
+1. Confirmar que el backup más reciente es posterior al último despliegue.
+2. Crear o seleccionar un proyecto/base de recuperación separado.
+3. Restaurar allí el backup y aplicar las migraciones faltantes, si las hay.
+4. Ejecutar las pruebas SQL de `supabase/tests/database/001_foundation.sql`.
+5. Verificar manualmente login, lectura del dashboard y procesamiento de un mensaje de prueba.
+6. Registrar fecha, responsable, versión de migraciones y resultado.
+
+No pruebes una restauración sobre la base activa sin una ventana de mantenimiento y una copia adicional verificada.
+
+## Monitoreo
+
+Configura un monitor HTTPS para:
+
+```text
+GET https://<dominio-de-moni>/api/health
+```
+
+Se espera `200` y un cuerpo con `status: "ok"`. Una respuesta `503` indica configuración incompleta o que la aplicación no puede consultar Supabase. El endpoint no devuelve nombres de variables, claves ni información de usuarios.
 
 ## Bloqueo actual del despliegue
 

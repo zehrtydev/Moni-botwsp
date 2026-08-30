@@ -36,4 +36,6 @@ npm audit --audit-level=high
 
 La guía de producción está en [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). La aplicación web y Evolution API son servicios distintos: el webhook debe ser accesible públicamente y usar HTTPS.
 
+Para operar la beta y revisar errores semanalmente, consulta [docs/BETA-OPERATIONS.md](docs/BETA-OPERATIONS.md).
+
 No subas archivos `.env`, claves de Supabase, claves de Evolution ni tokens al repositorio.

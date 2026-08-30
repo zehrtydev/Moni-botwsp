@@ -29,6 +29,38 @@ async function replyWithConfirmationButtons(number: string, text: string, title 
   }
 }
 
+async function markIncomingMessageAsProcessing(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  provider: string,
+  instance: string,
+  messageId: string,
+) {
+  const { error } = await supabase
+    .from("mensajes_entrantes")
+    .update({ estado_procesamiento: "procesando" })
+    .eq("proveedor", provider)
+    .eq("instancia", instance)
+    .eq("mensaje_origen_id", messageId);
+
+  if (error) throw error;
+}
+
+async function markIncomingMessageAsError(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  provider: string,
+  instance: string,
+  messageId: string,
+) {
+  const { error } = await supabase
+    .from("mensajes_entrantes")
+    .update({ estado_procesamiento: "error", codigo_error: "PROCESSING_FAILED" })
+    .eq("proveedor", provider)
+    .eq("instancia", instance)
+    .eq("mensaje_origen_id", messageId);
+
+  if (error) console.error("whatsapp_message_error_mark_failed", error);
+}
+
 async function processIncomeMessage(supabase: ReturnType<typeof createSupabaseAdminClient>, userId: string, number: string, message: { mensaje_origen_id: string; contenido: string; timestamp: string }) {
   const { data: active } = await supabase.from("ingresos").select("id, monto, estado").eq("usuario_id", userId).eq("estado", "pendiente_confirmacion").maybeSingle();
   const command = message.contenido.trim().toLocaleLowerCase("es").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -291,11 +323,13 @@ export async function POST(request: Request) {
       });
       if (insertError?.code === "23505") return NextResponse.json({ success: true, duplicate: true });
       if (insertError) throw insertError;
+      await markIncomingMessageAsProcessing(admin, "evolution", instance, parsed.data.mensaje_origen_id);
       const gastoId = await processExpenseMessage(admin, parsed.data);
       await admin.from("mensajes_entrantes").update({ estado_procesamiento: "procesado", procesado_en: new Date().toISOString(), gasto_id: gastoId }).eq("instancia", instance).eq("mensaje_origen_id", parsed.data.mensaje_origen_id);
       return NextResponse.json({ success: true, accepted: true, gastoId }, { status: 202 });
     } catch (error) {
       console.error("whatsapp_lid_webhook_failed", error);
+      await markIncomingMessageAsError(admin, "evolution", instance, parsed.data.mensaje_origen_id);
       return NextResponse.json({ success: false, error: "No se pudo registrar el mensaje" }, { status: 500 });
     }
   }
@@ -320,11 +354,15 @@ export async function POST(request: Request) {
     });
     if (error?.code === "23505") return NextResponse.json({ success: true, duplicate: true });
     if (error) throw error;
+    const provider = request.headers.get("x-whatsapp-provider") ?? "evolution";
+    await markIncomingMessageAsProcessing(admin, provider, instance, parsed.data.mensaje_origen_id);
     const gastoId = await processExpenseMessage(admin, parsed.data);
-    await admin.from("mensajes_entrantes").update({ estado_procesamiento: "procesado", procesado_en: new Date().toISOString(), gasto_id: gastoId }).eq("proveedor", request.headers.get("x-whatsapp-provider") ?? "evolution").eq("instancia", instance).eq("mensaje_origen_id", parsed.data.mensaje_origen_id);
+    await admin.from("mensajes_entrantes").update({ estado_procesamiento: "procesado", procesado_en: new Date().toISOString(), gasto_id: gastoId }).eq("proveedor", provider).eq("instancia", instance).eq("mensaje_origen_id", parsed.data.mensaje_origen_id);
     return NextResponse.json({ success: true, accepted: true, gastoId }, { status: 202 });
   } catch (error) {
     console.error("whatsapp_webhook_failed", error);
+    const provider = request.headers.get("x-whatsapp-provider") ?? "evolution";
+    await markIncomingMessageAsError(createSupabaseAdminClient(), provider, instance, parsed.data.mensaje_origen_id);
     return NextResponse.json({ success: false, error: "No se pudo registrar el mensaje" }, { status: 500 });
   }
 }
