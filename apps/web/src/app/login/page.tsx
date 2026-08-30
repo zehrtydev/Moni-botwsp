@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { getAuthErrorMessage } from "@/lib/auth-error";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,7 +40,11 @@ export default function LoginPage() {
       if (signInError) throw signInError;
       router.replace("/dashboard"); router.refresh();
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "No se pudo iniciar sesión.");
+      const errorCode = caughtError && typeof caughtError === "object" && "code" in caughtError
+        ? caughtError.code
+        : undefined;
+      console.error("auth_action_failed", { code: errorCode });
+      setError(getAuthErrorMessage(caughtError, registering));
     } finally { setLoading(false); }
   }
 

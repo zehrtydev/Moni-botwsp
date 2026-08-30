@@ -22,13 +22,13 @@ values (
   'authenticated',
   'authenticated',
   '{}'::jsonb,
-  '{}'::jsonb
+  '{"nombre":"Diana Caan"}'::jsonb
 );
 
 select results_eq(
-  $$select id from public.usuarios where id = '00000000-0000-0000-0000-000000000001'::uuid$$,
-  $$values ('00000000-0000-0000-0000-000000000001'::uuid)$$,
-  'El trigger crea un perfil con el mismo UUID de auth.users'
+  $$select id, nombre from public.usuarios where id = '00000000-0000-0000-0000-000000000001'::uuid$$,
+  $$values ('00000000-0000-0000-0000-000000000001'::uuid, 'Diana Caan')$$,
+  'El trigger crea el perfil y conserva el nombre de auth.users'
 );
 
 select lives_ok(
