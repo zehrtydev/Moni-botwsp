@@ -26,7 +26,10 @@ export default function LoginPage() {
         const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { nombre: normalizedName } },
+          options: {
+            data: { nombre: normalizedName },
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
         });
         if (signUpError) throw signUpError;
         setError("Cuenta creada. Revisa tu correo si Supabase solicita confirmación.");
