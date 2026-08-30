@@ -42,15 +42,14 @@ describe("WhatsApp webhook contract", () => {
     expect(result).toMatchObject({ kind: "lid", lid: "51629868974162@lid" });
   });
 
-  it("uses Evolution sender to resolve a LID payload when multiple users are linked", () => {
+  it("does not use Evolution top-level sender as the contact number", () => {
     const result = normalizeEvolutionPayload({
       event: "messages.upsert", instance: "moni-local",
       sender: "573001234567@s.whatsapp.net",
       data: { key: { id: "msg-lid-sender", remoteJid: "51629868974162@lid", fromMe: false },
         message: { conversation: "Hola" }, messageTimestamp: 1_756_500_000 },
     });
-    expect(result.kind).toBe("message");
-    if (result.kind === "message") expect(result.message.numero_whatsapp).toBe("+573001234567");
+    expect(result.kind).toBe("lid");
   });
 
   it("normalizes an incoming image as an incomplete message", () => {

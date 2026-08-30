@@ -16,7 +16,7 @@ export type IncomingMessage = z.infer<typeof incomingMessageSchema>;
 
 export function normalizeEvolutionPayload(payload: unknown) {
   if (!payload || typeof payload !== "object") return { kind: "invalid" as const };
-  const input = payload as { event?: unknown; instance?: unknown; data?: unknown; sender?: unknown };
+  const input = payload as { event?: unknown; instance?: unknown; data?: unknown };
   if (input.event !== "messages.upsert" && input.event !== "MESSAGES_UPSERT") return { kind: "ignored" as const };
   if (!input.instance || !input.data || typeof input.data !== "object") return { kind: "invalid" as const };
   const data = input.data as { key?: unknown; message?: unknown; messageTimestamp?: unknown; sender?: unknown };
@@ -24,9 +24,7 @@ export function normalizeEvolutionPayload(payload: unknown) {
   const message = data.message as Record<string, unknown> | undefined;
   const remoteJid = typeof key?.remoteJid === "string" ? key.remoteJid : "";
   const alternateJid = typeof key?.remoteJidAlt === "string" ? key.remoteJidAlt : "";
-  const senderJid = typeof data.sender === "string"
-    ? data.sender
-    : typeof input.sender === "string" ? input.sender : "";
+  const senderJid = typeof data.sender === "string" ? data.sender : "";
   const contactJid = remoteJid.endsWith("@lid") ? alternateJid || senderJid : remoteJid;
   const number = contactJid.replace(/@(s\.whatsapp\.net|c\.us)$/, "");
   if (key?.fromMe === true || !key?.id || (!/^\+[1-9][0-9]{7,14}$/.test(`+${number}`) && !remoteJid.endsWith("@lid"))) return { kind: "ignored" as const };
