@@ -16,6 +16,19 @@ describe("expense message parser", () => {
     expect(extractExpenseDraft("Hoy fui al cine")).toBeNull();
   });
 
+  it.each([
+    ["Pagué 25 mil de almuerzo", "Almuerzo"],
+    ["Me cobraron 45 mil por internet", "Internet"],
+    ["Me costó 18 mil el taxi", "Taxi"],
+    ["Cancelé 12 mil de transporte", "Transporte"],
+    ["Desembolsé 50 mil para un curso", "Curso"],
+    ["Consumí 20 mil en restaurante", "Restaurante"],
+    ["Adquirí 80 mil de ropa", "Ropa"],
+    ["Recargué 10 mil de celular", "Celular"],
+  ])("recognizes a common expense synonym: %s", (text, description) => {
+    expect(extractExpenseDraft(text)?.descripcion).toBe(description);
+  });
+
   it("accepts mil without a space", () => {
     expect(extractExpenseDraft("Gaste 20mil en gasolina")?.monto).toBe(20000);
   });

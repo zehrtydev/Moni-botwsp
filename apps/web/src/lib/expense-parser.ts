@@ -54,11 +54,13 @@ export function normalizeExpenseDescription(text: string) {
   description = description.replace(/^(?:quiero\s+regist\w*\s+(?:un\s+)?gasto\s*[,\-:]?\s*)/i, "");
   description = description.replace(/^(?:acabo\s+(?:de\s+)?(?:comprar|pagar|gastar)\s+)/i, "");
   description = description.replace(/\s+y\s+me\s+(?:salio|salió|costo|costó)(?:\s.*)?$/i, "");
-  description = description.replace(/^(?:gast[eé]|pagu[eé]|compr[eé]|gasto)\s+/i, "");
-  description = description.replace(/^(?:un|una|el|la|los|las)\s+/i, "");
+  description = description.replace(/^(?:me\s+)?(?:cobraron|cost[oó]|sal[ií][oó])\s+/i, "");
+  description = description.replace(/^(?:gast[eé]|pagu[eé]|compr[eé]|cancel[eé]|desembols[eé]|consum[ií]|adquir[ií]|recargu[eé]|reserv[eé]|contrat[eé]|invert[ií]|gasto)\s+/i, "");
   description = description.replace(/(?:\$\s*)?[0-9][0-9.\s]*(?:mil|k|lucas?)?\b/gi, "");
-  description = description.replace(/\s+(?:en|de|por)\s*$/i, "");
-  description = description.replace(/^\s*(?:en|de|por)\s+/i, "").replace(/\s+(?:en|de|por)\s+/i, " ").trim();
+  description = description.replace(/^\s*(?:en|de|por|para)\s+/i, "");
+  description = description.replace(/^\s*(?:un|una|el|la|los|las)\s+/i, "");
+  description = description.replace(/\s+(?:en|de|por|para)\s*$/i, "");
+  description = description.replace(/\s+(?:en|de|por|para)\s+/i, " ").trim();
   if (/^plan celular$/.test(description)) description = "plan de celular";
   if (!description) return "Gasto registrado por WhatsApp";
   return description.charAt(0).toLocaleUpperCase("es") + description.slice(1);
