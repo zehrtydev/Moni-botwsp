@@ -24,3 +24,15 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
   if (!expense) return NextResponse.json({ error: "Gasto no encontrado" }, { status: 404 });
   return NextResponse.json({ success: true });
 }
+
+export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+  const { id } = await context.params;
+  const admin = createSupabaseAdminClient();
+  const { data: expense, error } = await admin.from("gastos").delete().eq("id", id).eq("usuario_id", user.id).select("id").maybeSingle();
+  if (error) { console.error("expense_delete_failed", error); return NextResponse.json({ error: "No se pudo eliminar el gasto" }, { status: 500 }); }
+  if (!expense) return NextResponse.json({ error: "Gasto no encontrado" }, { status: 404 });
+  return NextResponse.json({ success: true });
+}
