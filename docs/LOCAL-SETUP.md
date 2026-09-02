@@ -20,7 +20,7 @@ Completa `apps/web/.env.local` con los valores mostrados por `supabase status`. 
 
 ## Evolution API
 
-Evolution está definido en `infra/evolution/docker-compose.yml` y usa la imagen fijada `evoapicloud/evolution-api:2.3.7`.
+Evolution está definido en `infra/evolution/docker-compose.yml` y usa la imagen fijada `evoapicloud/evolution-api:v2.3.7`.
 
 ```powershell
 cd infra/evolution

@@ -22,7 +22,7 @@ services:
 
   evolution-api:
     container_name: monibotwsp-evolution
-    image: evoapicloud/evolution-api:2.3.7
+    image: evoapicloud/evolution-api:v2.3.7
     restart: unless-stopped
     depends_on:
       - evolution-postgres

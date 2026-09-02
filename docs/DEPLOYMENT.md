@@ -1,13 +1,15 @@
 # Preparación para producción
 
-## Arquitectura recomendada
+## Arquitectura de producción
 
-- Next.js: Vercel, Railway o un servidor Node.
-- Supabase: proyecto hosted con migraciones aplicadas.
-- Evolution API: VPS o servicio Docker con almacenamiento persistente.
-- Ollama: solo en una máquina con recursos suficientes; no se recomienda ponerlo en una función serverless.
+- Next.js y Evolution API se ejecutan en el VPS mediante `docker-compose.prod.yml`.
+- PostgreSQL y Redis son servicios privados dedicados a Evolution, con volúmenes persistentes.
+- Supabase permanece hosted y recibe las migraciones del repositorio.
+- El proxy HTTPS instalado en el host dirige `moni.zehrty.dev` a `127.0.0.1:3000`.
+- Evolution queda disponible solo en `127.0.0.1:8080`; su administración requiere un túnel SSH.
+- Ollama no forma parte del stack inicial del VPS. La IA remota es opcional y el parser determinista sigue disponible sin ella.
 
-Evolution y Next.js no deben depender de `localhost` en producción. Evolution necesita llegar a una URL HTTPS pública del webhook de Next.js.
+La web se comunica con Evolution por la red Docker mediante `http://evolution-api:8080`. Evolution debe enviar el evento `MESSAGES_UPSERT` a `https://moni.zehrty.dev/api/webhooks/whatsapp` y usar un header `x-webhook-secret` que coincida con `WHATSAPP_WEBHOOK_SECRET`.
 
 ## Variables de entorno
 
@@ -22,7 +24,9 @@ Valores que deben cambiarse en producción:
 - `EVOLUTION_API_URL`
 - `EVOLUTION_API_KEY`
 - `EVOLUTION_INSTANCE_NAME`
-- `AI_BASE_URL` y `AI_MODEL`, si se usa IA local/remota
+- `EVOLUTION_SERVER_URL`, URL que Evolution usa para generar enlaces internos. Déjala en `http://127.0.0.1:8080` si solo entrarás por túnel SSH, o cámbiala a la URL HTTPS pública si decides exponer Evolution detrás del proxy.
+- `EVOLUTION_POSTGRES_PASSWORD`, generado con caracteres seguros para una URL
+- `AI_PROVIDER`, `AI_API_KEY`, `AI_BASE_URL` y `AI_MODEL`, si se usa IA remota
 
 Genera un secreto fuerte para el webhook, por ejemplo con PowerShell:
 
@@ -32,13 +36,37 @@ $bytes = New-Object byte[] 32
 [Convert]::ToBase64String($bytes)
 ```
 
+## Archivo de entorno del VPS
+
+El archivo real vive en `/opt/moni/.env.production`, debe tener permisos `600` y nunca se versiona. Usa `.env.production.example` como inventario y reemplaza todos los placeholders en el VPS.
+
+```bash
+cd /opt/moni
+cp .env.production.example .env.production
+chmod 600 .env.production
+```
+
+No reutilices claves del Supabase local. `NEXT_PUBLIC_SUPABASE_URL`, las claves de Supabase y las URLs de autenticación deben pertenecer al proyecto hosted de producción.
+
+Antes del primer despliegue, valida la configuración sin imprimir los valores resueltos:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml config --quiet
+```
+
+## Despliegue automático
+
+El workflow `.github/workflows/deploy-vps.yml` se ejecuta al hacer push a `master`. El repositorio debe existir en `/opt/moni` y GitHub debe tener configurados los secretos `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` y `VPS_HOST_FINGERPRINT`. Este último debe ser la huella SHA256 de la clave SSH Ed25519 del servidor, por ejemplo `SHA256:...`, obtenida por un canal confiable; el workflow rechaza una clave diferente.
+
+El workflow actualiza el checkout con avance rápido, valida el Compose, descarga las imágenes fijadas, construye la web, levanta el stack completo y espera sus healthchecks. Finalmente comprueba `https://moni.zehrty.dev/api/health`.
+
 ## Checklist antes de publicar
 
 - [ ] Proyecto Supabase de producción creado.
 - [ ] Migraciones aplicadas y RLS verificado.
 - [ ] Backup y recuperación de la base definidos.
 - [ ] URL HTTPS pública del webhook configurada en Evolution.
-- [ ] Evolution usa una versión fijada y volúmenes persistentes.
+- [x] El Compose versionado usa imágenes fijadas y volúmenes persistentes para Evolution.
 - [ ] Secretos configurados fuera del repositorio.
 - [ ] `npm ci`, tests, build y `npm audit --audit-level=high` pasan.
 - [ ] Pruebas manuales de registro, confirmación, corrección y consulta completadas.
@@ -61,6 +89,8 @@ Procedimiento mínimo mensual:
 
 No pruebes una restauración sobre la base activa sin una ventana de mantenimiento y una copia adicional verificada.
 
+El VPS también debe respaldar los volúmenes `evolution_instances`, `evolution_postgres` y `evolution_redis`. El backup de Supabase no contiene la sesión de WhatsApp ni los datos internos de Evolution.
+
 ## Monitoreo
 
 Configura un monitor HTTPS para:
@@ -71,6 +101,6 @@ GET https://<dominio-de-moni>/api/health
 
 Se espera `200` y un cuerpo con `status: "ok"`. Una respuesta `503` indica configuración incompleta o que la aplicación no puede consultar Supabase. El endpoint no devuelve nombres de variables, claves ni información de usuarios.
 
-## Bloqueo actual del despliegue
+## Estado actual del despliegue
 
-Todavía no se puede ejecutar un despliegue real sin elegir proveedor, dominio/URL pública y proyecto Supabase de producción. Además, Evolution local no es accesible desde Internet. La aplicación queda preparada, pero no se deben inventar esas credenciales ni publicar el webhook sin ellas.
+El repositorio ya contiene el Compose de producción, la imagen standalone de Next.js y el workflow de despliegue. Antes de activar el primer despliegue todavía se debe crear `/opt/moni/.env.production`, configurar el proxy HTTPS, verificar los secretos de GitHub, aplicar las migraciones en Supabase hosted y establecer el backup de los volúmenes del VPS.

@@ -22,12 +22,15 @@ jobs:
         env:
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_HOST_FINGERPRINT: ${{ secrets.VPS_HOST_FINGERPRINT }}
         run: |
           set -euo pipefail
           install -d -m 700 "$HOME/.ssh"
           printf '%s\n' "$VPS_SSH_KEY" > "$HOME/.ssh/moni_deploy"
           ssh-keyscan -T 10 -t ed25519 "$VPS_HOST" > "$HOME/.ssh/known_hosts" 2>/dev/null
           test -s "$HOME/.ssh/known_hosts"
+          ACTUAL_FINGERPRINT="$(ssh-keygen -lf "$HOME/.ssh/known_hosts" -E sha256 | awk 'NR == 1 { print $2 }')"
+          test "$ACTUAL_FINGERPRINT" = "$VPS_HOST_FINGERPRINT"
           chmod 600 "$HOME/.ssh/moni_deploy" "$HOME/.ssh/known_hosts"
 
       - name: Deploy on VPS
@@ -43,8 +46,12 @@ jobs:
             'set -euo pipefail
              cd /opt/moni
              git pull --ff-only origin master
+             test -f .env.production
+             chmod 600 .env.production
              docker compose --env-file .env.production -f docker-compose.prod.yml config --quiet
+             docker compose --env-file .env.production -f docker-compose.prod.yml pull evolution-api evolution-postgres evolution-redis
              docker compose --env-file .env.production -f docker-compose.prod.yml build web
-             docker compose --env-file .env.production -f docker-compose.prod.yml up -d web
-             curl --fail --silent --show-error https://moni.zehrty.dev/api/health
+             docker compose --env-file .env.production -f docker-compose.prod.yml up -d --remove-orphans --wait --wait-timeout 180
+             docker compose --env-file .env.production -f docker-compose.prod.yml ps
+             curl --fail --silent --show-error --retry 10 --retry-delay 3 --connect-timeout 5 --max-time 15 https://moni.zehrty.dev/api/health
              printf "\\nDeployment completed successfully.\\n"'
