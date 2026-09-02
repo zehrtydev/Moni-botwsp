@@ -1,106 +1,124 @@
-# Preparación para producción
+# Despliegue de Moni en el VPS
 
-## Arquitectura de producción
+## Arquitectura definitiva
 
-- Next.js y Evolution API se ejecutan en el VPS mediante `docker-compose.prod.yml`.
-- PostgreSQL y Redis son servicios privados dedicados a Evolution, con volúmenes persistentes.
-- Supabase permanece hosted y recibe las migraciones del repositorio.
-- El proxy HTTPS instalado en el host dirige `moni.zehrty.dev` a `127.0.0.1:3000`.
-- Evolution queda disponible solo en `127.0.0.1:8080`; su administración requiere un túnel SSH.
-- Ollama no forma parte del stack inicial del VPS. La IA remota es opcional y el parser determinista sigue disponible sin ella.
+`docker-compose.prod.yml` administra un único proyecto Docker llamado `moni` y adopta la pila que ya existe en `/opt/moni`:
 
-La web se comunica con Evolution por la red Docker mediante `http://evolution-api:8080`. Evolution debe enviar el evento `MESSAGES_UPSERT` a `https://moni.zehrty.dev/api/webhooks/whatsapp` y usar un header `x-webhook-secret` que coincida con `WHATSAPP_WEBHOOK_SECRET`.
+- Caddy publica `80/tcp`, `443/tcp` y `443/udp`, conserva los certificados en volúmenes y dirige `moni.zehrty.dev` a `web:3000`.
+- Next.js, Evolution API y Ollama solo son accesibles por la red Docker.
+- PostgreSQL y Redis solo pertenecen a la red interna de datos de Evolution.
+- Supabase permanece alojado externamente.
+- Los volúmenes `caddy_data`, `caddy_config`, `ollama_data`, `evolution_instances`, `evolution_postgres` y `evolution_redis` sobreviven a recreaciones de contenedores.
+
+El Compose conserva los nombres actuales `moni-caddy`, `moni-web`, `moni-ollama`, `moni-evolution`, `moni-evolution-postgres` y `moni-evolution-redis`. Esto evita levantar una segunda pila en paralelo y permite reutilizar los volúmenes `moni_*` existentes.
+
+Evolution debe enviar `MESSAGES_UPSERT` a `https://moni.zehrty.dev/api/webhooks/whatsapp` con un header `x-webhook-secret` igual a `WHATSAPP_WEBHOOK_SECRET`.
+
+## Versiones fijadas
+
+- Caddy `2.11.4-alpine`
+- Ollama `0.33.2`
+- modelo Ollama `qwen3:1.7b`
+- Evolution API `v2.3.7`
+- PostgreSQL `15.19-alpine3.24`
+- Redis `7.4.11-alpine3.21`
+- Node.js `22.23.2-alpine3.23`
+
+No se usa `latest` en producción. Las actualizaciones deben hacerse de forma deliberada, con backup y verificación posterior.
 
 ## Variables de entorno
 
-Configura las variables de `apps/web/.env.example` en el proveedor. Las claves privadas deben configurarse en el panel de secretos del proveedor, nunca en GitHub.
+El archivo real es `/opt/moni/.env.production`, debe permanecer fuera de Git y con permisos `600`. `.env.production.example` es únicamente el inventario sin secretos.
 
-Valores que deben cambiarse en producción:
+Variables requeridas:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `WHATSAPP_WEBHOOK_SECRET`
-- `EVOLUTION_API_URL`
 - `EVOLUTION_API_KEY`
-- `EVOLUTION_INSTANCE_NAME`
-- `EVOLUTION_SERVER_URL`, URL que Evolution usa para generar enlaces internos. Déjala en `http://127.0.0.1:8080` si solo entrarás por túnel SSH, o cámbiala a la URL HTTPS pública si decides exponer Evolution detrás del proxy.
-- `EVOLUTION_POSTGRES_PASSWORD`, generado con caracteres seguros para una URL
-- `AI_PROVIDER`, `AI_API_KEY`, `AI_BASE_URL` y `AI_MODEL`, si se usa IA remota
+- `EVOLUTION_DB_PASSWORD`, usando caracteres seguros dentro de una URL
 
-Genera un secreto fuerte para el webhook, por ejemplo con PowerShell:
+Variables con valores operativos configurables:
 
-```powershell
-$bytes = New-Object byte[] 32
-[Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
-[Convert]::ToBase64String($bytes)
-```
+- `EVOLUTION_API_URL=http://evolution-api:8080`
+- `EVOLUTION_INSTANCE_NAME=moni-production`
+- `AI_PROVIDER=ollama`
+- `AI_BASE_URL=http://ollama:11434/v1`
+- `AI_MODEL=qwen3:1.7b`
 
-## Archivo de entorno del VPS
-
-El archivo real vive en `/opt/moni/.env.production`, debe tener permisos `600` y nunca se versiona. Usa `.env.production.example` como inventario y reemplaza todos los placeholders en el VPS.
+`EVOLUTION_SERVER_URL` es opcional y por defecto vale `http://127.0.0.1:8080`. No imprimas el contenido del archivo real al diagnosticar; valida solo sus nombres y el Compose resuelto.
 
 ```bash
 cd /opt/moni
-cp .env.production.example .env.production
 chmod 600 .env.production
-```
-
-No reutilices claves del Supabase local. `NEXT_PUBLIC_SUPABASE_URL`, las claves de Supabase y las URLs de autenticación deben pertenecer al proyecto hosted de producción.
-
-Antes del primer despliegue, valida la configuración sin imprimir los valores resueltos:
-
-```bash
 docker compose --env-file .env.production -f docker-compose.prod.yml config --quiet
 ```
 
 ## Despliegue automático
 
-El workflow `.github/workflows/deploy-vps.yml` se ejecuta al hacer push a `master`. El repositorio debe existir en `/opt/moni` y GitHub debe tener configurados los secretos `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` y `VPS_HOST_FINGERPRINT`. Este último debe ser la huella SHA256 de la clave SSH Ed25519 del servidor, por ejemplo `SHA256:...`, obtenida por un canal confiable; el workflow rechaza una clave diferente.
+`.github/workflows/deploy-vps.yml` se ejecuta con cada push a `master`. GitHub Actions necesita estos secretos del repositorio:
 
-El workflow actualiza el checkout con avance rápido, valida el Compose, descarga las imágenes fijadas, construye la web, levanta el stack completo y espera sus healthchecks. Finalmente comprueba `https://moni.zehrty.dev/api/health`.
+- `VPS_HOST`: IP o hostname del VPS.
+- `VPS_USER`: usuario de despliegue, actualmente `moniadmin`.
+- `VPS_SSH_KEY`: clave privada cuya pública está autorizada en el VPS.
+- `VPS_HOST_FINGERPRINT`: huella SHA256 Ed25519 del servidor, con formato `SHA256:...`.
 
-## Checklist antes de publicar
+Obtén la huella directamente en el VPS:
 
-- [ ] Proyecto Supabase de producción creado.
-- [ ] Migraciones aplicadas y RLS verificado.
-- [ ] Backup y recuperación de la base definidos.
-- [ ] URL HTTPS pública del webhook configurada en Evolution.
-- [x] El Compose versionado usa imágenes fijadas y volúmenes persistentes para Evolution.
-- [ ] Secretos configurados fuera del repositorio.
-- [ ] `npm ci`, tests, build y `npm audit --audit-level=high` pasan.
-- [ ] Pruebas manuales de registro, confirmación, corrección y consulta completadas.
-- [ ] Rate limiting y monitoreo definidos para el webhook.
-- [ ] Monitor externo configurado contra `GET /api/health`.
-- [ ] Se ejecutó una restauración de prueba en un proyecto o base separada.
+```bash
+sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256 | awk '{print $2}'
+```
+
+El workflow verifica esa huella, hace `git pull --ff-only`, valida el Compose, descarga las imágenes fijadas, construye la web, levanta los seis servicios con `--wait` y comprueba `https://moni.zehrty.dev/api/health`.
+
+## Primera adopción del checkout existente
+
+El VPS fue preparado manualmente antes de que estos archivos existieran en Git. Por eso `apps/web/Dockerfile`, `deploy/` y `docker-compose.prod.yml` aparecen como archivos sin seguimiento y bloquearían el primer `git pull`. Justo antes del primer push, crea una copia fuera del repositorio y aparta únicamente esos archivos; no muevas `.env.production` ni elimines volúmenes.
+
+```bash
+cd /opt/moni
+backup_dir="/opt/moni-predeploy-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$backup_dir/apps/web" "$backup_dir/deploy"
+cp -a docker-compose.prod.yml "$backup_dir/"
+cp -a apps/web/Dockerfile "$backup_dir/apps/web/"
+cp -a deploy/. "$backup_dir/deploy/"
+mv docker-compose.prod.yml "$backup_dir/docker-compose.prod.yml.active"
+mv apps/web/Dockerfile "$backup_dir/apps/web/Dockerfile.active"
+mv deploy "$backup_dir/deploy.active"
+git status --short --branch
+```
+
+Después de comprobar que ya no aparecen esos tres conflictos, se puede hacer el push. La acción traerá sus reemplazos versionados. Si el workflow no arranca inmediatamente, restaura los archivos `.active` desde el backup para que el montaje de Caddy siga disponible.
+
+## Verificación posterior
+
+```bash
+cd /opt/moni
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+curl --fail --silent --show-error https://moni.zehrty.dev/api/health
+docker exec moni-ollama ollama list
+```
+
+Se espera que los seis servicios estén `running` o `healthy`, que el endpoint devuelva `status: ok` y que Ollama liste `qwen3:1.7b`.
 
 ## Backups y recuperación
 
-El backup de Supabase debe estar habilitado en el proyecto hosted según el proveedor contratado. Para Moni no basta con confirmar que existe un backup: hay que probar que se puede restaurar.
+El backup de Supabase debe probarse en un proyecto separado. El VPS también debe respaldar los seis volúmenes Docker; el backup de Supabase no contiene certificados TLS, el modelo local, la sesión de WhatsApp ni los datos internos de Evolution.
 
-Procedimiento mínimo mensual:
+Nunca pruebes una restauración sobre la base activa sin ventana de mantenimiento y una copia adicional verificada.
 
-1. Confirmar que el backup más reciente es posterior al último despliegue.
-2. Crear o seleccionar un proyecto/base de recuperación separado.
-3. Restaurar allí el backup y aplicar las migraciones faltantes, si las hay.
-4. Ejecutar las pruebas SQL de `supabase/tests/database/001_foundation.sql`.
-5. Verificar manualmente login, lectura del dashboard y procesamiento de un mensaje de prueba.
-6. Registrar fecha, responsable, versión de migraciones y resultado.
+## Checklist
 
-No pruebes una restauración sobre la base activa sin una ventana de mantenimiento y una copia adicional verificada.
-
-El VPS también debe respaldar los volúmenes `evolution_instances`, `evolution_postgres` y `evolution_redis`. El backup de Supabase no contiene la sesión de WhatsApp ni los datos internos de Evolution.
-
-## Monitoreo
-
-Configura un monitor HTTPS para:
-
-```text
-GET https://<dominio-de-moni>/api/health
-```
-
-Se espera `200` y un cuerpo con `status: "ok"`. Una respuesta `503` indica configuración incompleta o que la aplicación no puede consultar Supabase. El endpoint no devuelve nombres de variables, claves ni información de usuarios.
-
-## Estado actual del despliegue
-
-El repositorio ya contiene el Compose de producción, la imagen standalone de Next.js y el workflow de despliegue. Antes de activar el primer despliegue todavía se debe crear `/opt/moni/.env.production`, configurar el proxy HTTPS, verificar los secretos de GitHub, aplicar las migraciones en Supabase hosted y establecer el backup de los volúmenes del VPS.
+- [x] DNS de `moni.zehrty.dev` apunta al VPS.
+- [x] HTTPS de Let's Encrypt responde con certificado válido.
+- [x] `GET /api/health` devuelve `status: ok` desde el VPS.
+- [x] `.env.production` existe, contiene el inventario requerido y tiene permisos `600`.
+- [x] Los seis contenedores están operativos y Ollama tiene `qwen3:1.7b`.
+- [x] El Compose versionado adopta el proyecto, contenedores y volúmenes actuales.
+- [ ] Migraciones de Supabase y RLS verificadas.
+- [ ] Backups y restauración de prueba verificados.
+- [ ] Los cuatro secretos de GitHub Actions están configurados.
+- [ ] Se realizó el backup previo y se apartaron los archivos sin seguimiento conflictivos.
+- [ ] El primer despliegue automático terminó correctamente.
+- [ ] Se completó una prueba funcional real de WhatsApp.

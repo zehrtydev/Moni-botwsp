@@ -49,7 +49,7 @@ jobs:
              test -f .env.production
              chmod 600 .env.production
              docker compose --env-file .env.production -f docker-compose.prod.yml config --quiet
-             docker compose --env-file .env.production -f docker-compose.prod.yml pull evolution-api evolution-postgres evolution-redis
+             docker compose --env-file .env.production -f docker-compose.prod.yml pull caddy ollama evolution-api evolution-postgres evolution-redis
              docker compose --env-file .env.production -f docker-compose.prod.yml build web
              docker compose --env-file .env.production -f docker-compose.prod.yml up -d --remove-orphans --wait --wait-timeout 180
              docker compose --env-file .env.production -f docker-compose.prod.yml ps

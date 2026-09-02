@@ -1,4 +1,4 @@
-name: moni-production
+name: moni
 
 x-logging: &default-logging
   driver: json-file
@@ -7,6 +7,24 @@ x-logging: &default-logging
     max-file: "3"
 
 services:
+  caddy:
+    image: caddy:2.11.4-alpine
+    container_name: moni-caddy
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [moni]
+    logging: *default-logging
+
   web:
     build:
       context: ./apps/web
@@ -14,6 +32,7 @@ services:
       args:
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:?set NEXT_PUBLIC_SUPABASE_URL in .env.production}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:?set NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.production}
+    container_name: moni-web
     restart: unless-stopped
     init: true
     environment:
@@ -25,26 +44,41 @@ services:
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:?set NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.production}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?set SUPABASE_SERVICE_ROLE_KEY in .env.production}
       WHATSAPP_WEBHOOK_SECRET: ${WHATSAPP_WEBHOOK_SECRET:?set WHATSAPP_WEBHOOK_SECRET in .env.production}
-      EVOLUTION_API_URL: http://evolution-api:8080
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL:-http://evolution-api:8080}
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:?set EVOLUTION_API_KEY in .env.production}
       EVOLUTION_INSTANCE_NAME: ${EVOLUTION_INSTANCE_NAME:?set EVOLUTION_INSTANCE_NAME in .env.production}
-      AI_PROVIDER: ${AI_PROVIDER:-openai}
-      AI_API_KEY: ${AI_API_KEY:-}
-      AI_BASE_URL: ${AI_BASE_URL:-}
-      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
-    ports:
-      - "127.0.0.1:3000:3000"
+      AI_PROVIDER: ${AI_PROVIDER:-ollama}
+      AI_BASE_URL: ${AI_BASE_URL:-http://ollama:11434/v1}
+      AI_MODEL: ${AI_MODEL:-qwen3:1.7b}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 30s
-    networks: [app-net]
+    networks: [moni]
+    logging: *default-logging
+
+  ollama:
+    image: ollama/ollama:0.33.2
+    container_name: moni-ollama
+    restart: unless-stopped
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks: [moni]
     logging: *default-logging
 
   evolution-api:
     image: evoapicloud/evolution-api:v2.3.7
+    container_name: moni-evolution
     restart: unless-stopped
     init: true
     depends_on:
@@ -60,7 +94,7 @@ services:
       DEL_INSTANCE: "false"
       DATABASE_ENABLED: "true"
       DATABASE_PROVIDER: postgresql
-      DATABASE_CONNECTION_URI: postgresql://evolution:${EVOLUTION_POSTGRES_PASSWORD:?set EVOLUTION_POSTGRES_PASSWORD in .env.production}@evolution-postgres:5432/evolution?schema=evolution_api
+      DATABASE_CONNECTION_URI: postgresql://evolution:${EVOLUTION_DB_PASSWORD:?set EVOLUTION_DB_PASSWORD in .env.production}@evolution-postgres:5432/evolution?schema=evolution_api
       DATABASE_CONNECTION_CLIENT_NAME: monibotwsp
       DATABASE_SAVE_DATA_INSTANCE: "true"
       DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
@@ -70,8 +104,6 @@ services:
       CACHE_REDIS_SAVE_INSTANCES: "false"
       CACHE_LOCAL_ENABLED: "false"
       WEBHOOK_GLOBAL_ENABLED: "false"
-    ports:
-      - "127.0.0.1:8080:8080"
     volumes:
       - evolution_instances:/evolution/instances
     healthcheck:
@@ -80,16 +112,17 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
-    networks: [app-net, data-net]
+    networks: [moni, data-net]
     logging: *default-logging
 
   evolution-postgres:
     image: postgres:15.19-alpine3.24
+    container_name: moni-evolution-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: evolution
       POSTGRES_USER: evolution
-      POSTGRES_PASSWORD: ${EVOLUTION_POSTGRES_PASSWORD:?set EVOLUTION_POSTGRES_PASSWORD in .env.production}
+      POSTGRES_PASSWORD: ${EVOLUTION_DB_PASSWORD:?set EVOLUTION_DB_PASSWORD in .env.production}
     volumes:
       - evolution_postgres:/var/lib/postgresql/data
     healthcheck:
@@ -102,6 +135,7 @@ services:
 
   evolution-redis:
     image: redis:7.4.11-alpine3.21
+    container_name: moni-evolution-redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
@@ -115,11 +149,14 @@ services:
     logging: *default-logging
 
 volumes:
+  caddy_data:
+  caddy_config:
+  ollama_data:
   evolution_instances:
   evolution_postgres:
   evolution_redis:
 
 networks:
-  app-net:
+  moni:
   data-net:
     internal: true

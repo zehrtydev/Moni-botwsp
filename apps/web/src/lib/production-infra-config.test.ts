@@ -8,25 +8,43 @@ function readRepoFile(relativePath: string) {
   return readFileSync(resolve(repoRoot, relativePath), "utf8");
 }
 
+function serviceBlock(compose: string, service: string) {
+  const lines = compose.split("\n");
+  const start = lines.findIndex((line) => line === `  ${service}:`);
+  const end = lines.findIndex((line, index) => index > start && /^  [a-z0-9-]+:$/.test(line));
+  return lines.slice(start, end === -1 ? undefined : end).join("\n");
+}
+
 describe("production VPS configuration", () => {
   it("defines the complete production stack with pinned images", () => {
     const composePath = resolve(repoRoot, "docker-compose.prod.yml");
 
     expect(existsSync(composePath)).toBe(true);
     const compose = readFileSync(composePath, "utf8");
+    expect(compose).toContain("name: moni");
+    expect(compose).toContain("caddy:");
     expect(compose).toContain("web:");
+    expect(compose).toContain("ollama:");
     expect(compose).toContain("evolution-api:");
     expect(compose).toContain("evolution-postgres:");
     expect(compose).toContain("evolution-redis:");
+    expect(compose).toContain("caddy:2.11.4-alpine");
+    expect(compose).toContain("ollama/ollama:0.33.2");
     expect(compose).toContain("evoapicloud/evolution-api:v2.3.7");
     expect(compose).not.toMatch(/image:\s*[^\n]*:latest/);
   });
 
-  it("keeps public ports on loopback and data services internal", () => {
+  it("publishes only Caddy and keeps application and data ports internal", () => {
     const compose = readRepoFile("docker-compose.prod.yml");
+    const caddy = serviceBlock(compose, "caddy");
+    const web = serviceBlock(compose, "web");
+    const evolution = serviceBlock(compose, "evolution-api");
 
-    expect(compose).toContain('"127.0.0.1:3000:3000"');
-    expect(compose).toContain('"127.0.0.1:8080:8080"');
+    expect(caddy).toContain('"80:80"');
+    expect(caddy).toContain('"443:443"');
+    expect(caddy).toContain('"443:443/udp"');
+    expect(web).not.toContain("ports:");
+    expect(evolution).not.toContain("ports:");
     expect(compose).toContain("internal: true");
     expect(compose).not.toMatch(/-\s*["']?(?:0\.0\.0\.0:)?(?:5432|6379):/);
   });
@@ -41,8 +59,7 @@ describe("production VPS configuration", () => {
       "SUPABASE_SERVICE_ROLE_KEY",
       "WHATSAPP_WEBHOOK_SECRET",
       "EVOLUTION_API_KEY",
-      "EVOLUTION_SERVER_URL",
-      "EVOLUTION_POSTGRES_PASSWORD",
+      "EVOLUTION_DB_PASSWORD",
     ]) {
       expect(example).toContain(`${name}=`);
     }
@@ -52,11 +69,27 @@ describe("production VPS configuration", () => {
       "SUPABASE_SERVICE_ROLE_KEY",
       "WHATSAPP_WEBHOOK_SECRET",
       "EVOLUTION_API_KEY",
-      "EVOLUTION_POSTGRES_PASSWORD",
+      "EVOLUTION_DB_PASSWORD",
     ]) {
       expect(compose).toContain(`\${${name}:?`);
     }
     expect(`${compose}\n${example}`).not.toContain("evolutionpass");
+  });
+
+  it("persists Caddy, Ollama and the existing production service names", () => {
+    const compose = readRepoFile("docker-compose.prod.yml");
+    const caddyfile = readRepoFile("deploy/caddy/Caddyfile");
+
+    for (const name of ["moni-caddy", "moni-web", "moni-ollama", "moni-evolution", "moni-evolution-postgres", "moni-evolution-redis"]) {
+      expect(compose).toContain(`container_name: ${name}`);
+    }
+    for (const volume of ["caddy_data", "caddy_config", "ollama_data", "evolution_instances", "evolution_postgres", "evolution_redis"]) {
+      expect(compose).toContain(`${volume}:`);
+    }
+    expect(caddyfile).toContain("moni.zehrty.dev");
+    expect(caddyfile).toContain("reverse_proxy web:3000");
+    expect(compose).toContain("AI_BASE_URL: ${AI_BASE_URL:-http://ollama:11434/v1}");
+    expect(compose).toContain("AI_MODEL: ${AI_MODEL:-qwen3:1.7b}");
   });
 
   it("enables Evolution production persistence and conservative defaults", () => {
