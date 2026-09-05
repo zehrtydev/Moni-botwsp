@@ -4,8 +4,8 @@
 
 En Supabase, en **Authentication → URL Configuration**:
 
-- Site URL: `https://moni-botwsp.vercel.app`
-- Redirect URL: `https://moni-botwsp.vercel.app/auth/callback`
+- Site URL: `https://moni.zehrty.dev`
+- Redirect URL: `https://moni.zehrty.dev/auth/callback`
 
 Para desarrollo local se puede conservar `http://localhost:3000/auth/callback` como URL adicional.
 
