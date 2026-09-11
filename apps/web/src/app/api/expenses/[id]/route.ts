@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
+import { safeErrorCode } from "@/lib/safe-log";
 
 const updateExpenseSchema = z.object({
   monto: z.number().int().positive(),
@@ -20,7 +21,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
   const { data: category } = await admin.from("categorias").select("id").eq("id", parsed.data.categoria_id).eq("activa", true).maybeSingle();
   if (!category) return NextResponse.json({ error: "Categoría no válida" }, { status: 400 });
   const { data: expense, error } = await admin.from("gastos").update(parsed.data).eq("id", id).eq("usuario_id", user.id).select("id").maybeSingle();
-  if (error) { console.error("expense_update_failed", error); return NextResponse.json({ error: "No se pudo actualizar el gasto" }, { status: 500 }); }
+  if (error) { console.error("expense_update_failed", safeErrorCode(error)); return NextResponse.json({ error: "No se pudo actualizar el gasto" }, { status: 500 }); }
   if (!expense) return NextResponse.json({ error: "Gasto no encontrado" }, { status: 404 });
   return NextResponse.json({ success: true });
 }
@@ -32,7 +33,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
   const { id } = await context.params;
   const admin = createSupabaseAdminClient();
   const { data: expense, error } = await admin.from("gastos").delete().eq("id", id).eq("usuario_id", user.id).select("id").maybeSingle();
-  if (error) { console.error("expense_delete_failed", error); return NextResponse.json({ error: "No se pudo eliminar el gasto" }, { status: 500 }); }
+  if (error) { console.error("expense_delete_failed", safeErrorCode(error)); return NextResponse.json({ error: "No se pudo eliminar el gasto" }, { status: 500 }); }
   if (!expense) return NextResponse.json({ error: "Gasto no encontrado" }, { status: 404 });
   return NextResponse.json({ success: true });
 }

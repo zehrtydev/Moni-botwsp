@@ -28,7 +28,7 @@ export async function GET() {
     if (error) throw error;
     return NextResponse.json({ status: "ok", checks: { configuration: "ok", database: "ok" } });
   } catch (error) {
-    console.error("health_database_check_failed", error);
+    console.error("health_database_check_failed", error instanceof Error ? error.name : "unknown_error");
     return NextResponse.json(
       { status: "degraded", checks: { configuration: "ok", database: "failed" } },
       { status: 503 },

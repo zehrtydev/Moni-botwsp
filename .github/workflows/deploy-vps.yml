@@ -13,7 +13,40 @@ permissions:
   contents: read
 
 jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Unit tests with coverage
+        run: npm run test:coverage
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+      - name: npm audit
+        run: npm audit --audit-level=high
+      - name: Validate Docker Compose
+        working-directory: .
+        run: docker compose --env-file .env.production.example -f docker-compose.prod.yml config --quiet
+      - name: Validate Supabase migrations and RLS
+        working-directory: .
+        run: ./scripts/validate-supabase-migrations.sh
+
   deploy:
+    needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -48,6 +81,7 @@ jobs:
              git pull --ff-only origin master
              test -f .env.production
              chmod 600 .env.production
+             ./scripts/validate-supabase-migrations.sh
              docker compose --env-file .env.production -f docker-compose.prod.yml config --quiet
              docker compose --env-file .env.production -f docker-compose.prod.yml pull caddy ollama evolution-api evolution-postgres evolution-redis
              docker compose --env-file .env.production -f docker-compose.prod.yml build web

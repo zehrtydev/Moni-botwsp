@@ -51,7 +51,7 @@ services:
       AI_BASE_URL: ${AI_BASE_URL:-http://ollama:11434/v1}
       AI_MODEL: ${AI_MODEL:-qwen3:1.7b}
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 5

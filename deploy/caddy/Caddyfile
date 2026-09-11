@@ -1,4 +1,9 @@
 moni.zehrty.dev {
-	encode gzip
-	reverse_proxy web:3000
+    encode gzip
+
+    reverse_proxy web:3000 {
+        header_up Host moni.zehrty.dev
+        header_up X-Forwarded-Host moni.zehrty.dev
+        header_up X-Forwarded-Proto https
+    }
 }

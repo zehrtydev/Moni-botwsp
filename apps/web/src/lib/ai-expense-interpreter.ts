@@ -75,7 +75,7 @@ export async function interpretExpenseWithAI(text: string, receivedAt: Date) {
     const draft = toExpenseDraft(parsed.data, fallbackDate);
     return draft ? { draft, confianza: parsed.data.confianza } : null;
   } catch (error) {
-    console.warn("ai_expense_interpretation_failed", error instanceof Error ? error.message : "unknown_error");
+    console.warn("ai_expense_interpretation_failed", error instanceof Error ? error.name : "unknown_error");
     return null;
   }
 }

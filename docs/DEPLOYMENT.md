@@ -104,7 +104,30 @@ Se espera que los seis servicios estén `running` o `healthy`, que el endpoint d
 
 ## Backups y recuperación
 
-El backup de Supabase debe probarse en un proyecto separado. El VPS también debe respaldar los seis volúmenes Docker; el backup de Supabase no contiene certificados TLS, el modelo local, la sesión de WhatsApp ni los datos internos de Evolution.
+### Objetivos operativos
+
+- RPO: 24 horas para Supabase y 24 horas para volúmenes durante beta; reducir a 6 horas cuando haya tráfico sostenido.
+- RTO: 4 horas para restaurar la aplicación y 8 horas para una restauración completa validada.
+- Retención: 14 copias diarias y 8 semanales, con una copia mensual durante 3 meses.
+- Cifrado: backups de Supabase con `age` y una clave pública fuera del VPS; almacenamiento de backups con cifrado en reposo y acceso restringido.
+- Integridad: `SHA256SUMS` junto a cada backup; verificar checksums antes de restaurar.
+
+`scripts/backup-supabase.sh` crea un dump cifrado de Supabase y `scripts/backup-volumes.sh` archiva los seis volúmenes Docker. Ambos requieren una ruta de backup explícita y son manuales: CI no los ejecuta y esta tarea no los ha ejecutado.
+
+Procedimiento de restauración aislada:
+
+1. Preparar otro proyecto Supabase y un proyecto Compose con otro nombre y volúmenes nuevos; nunca usar el proyecto activo.
+2. Verificar `sha256sum -c SHA256SUMS`, descifrar el dump con la clave privada protegida y restaurarlo con `pg_restore --clean --if-exists` en la base aislada.
+3. Restaurar los archivos de volumen en volúmenes con prefijo aislado, levantar la copia y comprobar healthchecks, RLS, login, pairing, ingresos, presupuestos y el flujo crítico de WhatsApp con números de prueba.
+4. Registrar duración, resultado y divergencias. Solo después de aprobación manual se planifica una recuperación real.
+
+El backup de Supabase no contiene certificados TLS, el modelo local, la sesión de WhatsApp ni los datos internos de Evolution.
+
+### Rollback reproducible (no ejecutado)
+
+Antes de desplegar, registrar en el ticket el commit desplegado, el commit anterior, la referencia de imagen web y su digest obtenido con `docker image inspect moni-web --format '{{index .RepoDigests 0}}'` (sin fijarlo en Compose). Conservar también el `docker compose config` validado sin imprimir el entorno.
+
+Para recuperar: detener el pipeline automático, hacer `git fetch --tags` en una ventana aprobada, cambiar el checkout a la release/commit anterior, validar migraciones y Compose, reconstruir la imagen web anterior o restaurarla desde el registro usando su digest registrado, y ejecutar `docker compose up -d --wait`. Verificar `/api/health/ready`, logs sanitizados, login y pairing. Si hubo migraciones incompatibles, restaurar primero en un entorno aislado y ejecutar únicamente el procedimiento de reversión aprobado; no borrar datos automáticamente.
 
 Nunca pruebes una restauración sobre la base activa sin ventana de mantenimiento y una copia adicional verificada.
 

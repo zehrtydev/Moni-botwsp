@@ -71,4 +71,19 @@ describe("WhatsApp webhook processing", () => {
     expect(update).toHaveBeenCalledWith({ estado_procesamiento: "procesando" });
     expect(update).toHaveBeenCalledWith({ estado_procesamiento: "error", codigo_error: "PROCESSING_FAILED" });
   });
+
+  it("does not infer an unknown LID from the only linked user", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const query = { select: vi.fn(() => query), eq: vi.fn(() => query), maybeSingle };
+    adminFrom.mockReturnValue(query);
+    const lidPayload = { ...payload, data: { ...payload.data, key: { ...payload.data.key, remoteJid: "12345@lid" } } };
+
+    const { POST } = await import("./route");
+    const response = await POST(requestFor(lidPayload));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ success: true, ignored: true, reason: "contact_lid_requires_explicit_pairing" });
+    expect(adminFrom).toHaveBeenCalledWith("whatsapp_contactos_lid");
+    expect(adminFrom).not.toHaveBeenCalledWith("usuarios");
+  });
 });

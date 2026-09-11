@@ -9,12 +9,13 @@ import { sendEvolutionButtons, sendEvolutionText } from "@/lib/evolution";
 import { incomingMessageSchema, normalizeEvolutionPayload, verifyWebhookSecretHeader, verifyWebhookSignature } from "@/lib/whatsapp";
 import { buildExpenseProposal, buildIncomeProposal, correctionHelpMessages, correctionSuccessMessages, expenseNotUnderstoodMessages, greetingMessages, pickMessage, thanksMessages } from "@/lib/whatsapp-messages";
 import { hashPairingCode, isPairingCode } from "@/lib/whatsapp-pairing";
+import { safeErrorCode } from "@/lib/safe-log";
 
 export const runtime = "nodejs";
 
 async function reply(number: string, text: string) {
   try { await sendEvolutionText(number, text); }
-  catch (error) { console.error("whatsapp_reply_failed", error); }
+  catch (error) { console.error("whatsapp_reply_failed", safeErrorCode(error)); }
 }
 
 async function replyWithConfirmationButtons(number: string, text: string, title = "Confirmar movimiento") {
@@ -24,7 +25,7 @@ async function replyWithConfirmationButtons(number: string, text: string, title 
       { id: "reject_expense", title: "❌ No, descartar", displayText: "❌ No, descartar" },
     ]);
   } catch (error) {
-    console.warn("whatsapp_buttons_unavailable", error instanceof Error ? error.message : "unknown_error");
+    console.warn("whatsapp_buttons_unavailable", safeErrorCode(error));
     await reply(number, `${text}\n\n1️⃣ Sí, guardar\n2️⃣ No, descartar`);
   }
 }
@@ -58,7 +59,7 @@ async function markIncomingMessageAsError(
     .eq("instancia", instance)
     .eq("mensaje_origen_id", messageId);
 
-  if (error) console.error("whatsapp_message_error_mark_failed", error);
+  if (error) console.error("whatsapp_message_error_mark_failed", safeErrorCode(error));
 }
 
 async function processIncomeMessage(supabase: ReturnType<typeof createSupabaseAdminClient>, userId: string, number: string, message: { mensaje_origen_id: string; contenido: string; timestamp: string }) {
@@ -304,12 +305,7 @@ export async function POST(request: Request) {
     if (knownContactError) return NextResponse.json({ success: false, error: "No se pudo resolver el contacto" }, { status: 500 });
     let resolvedNumber = knownContact?.numero_whatsapp;
     if (!resolvedNumber) {
-      const { data: linkedUsers, error } = await admin.from("usuarios").select("numero_whatsapp").not("numero_whatsapp", "is", null);
-      if (error) return NextResponse.json({ success: false, error: "No se pudo resolver el contacto" }, { status: 500 });
-      const uniqueNumbers = [...new Set((linkedUsers ?? []).map((entry) => entry.numero_whatsapp).filter((number): number is string => Boolean(number)))];
-      if (uniqueNumbers.length !== 1) return NextResponse.json({ success: true, ignored: true, reason: "contact_lid_requires_contact_mapping" });
-      resolvedNumber = uniqueNumbers[0];
-      await admin.from("whatsapp_contactos_lid").upsert({ instancia: instance, lid: evolution.lid, numero_whatsapp: resolvedNumber, actualizado_en: new Date().toISOString() }, { onConflict: "instancia,lid" });
+      return NextResponse.json({ success: true, ignored: true, reason: "contact_lid_requires_explicit_pairing" });
     }
     const candidate = { ...evolution.message, numero_whatsapp: resolvedNumber };
     const parsed = incomingMessageSchema.safeParse(candidate);
@@ -328,7 +324,7 @@ export async function POST(request: Request) {
       await admin.from("mensajes_entrantes").update({ estado_procesamiento: "procesado", procesado_en: new Date().toISOString(), gasto_id: gastoId }).eq("instancia", instance).eq("mensaje_origen_id", parsed.data.mensaje_origen_id);
       return NextResponse.json({ success: true, accepted: true, gastoId }, { status: 202 });
     } catch (error) {
-      console.error("whatsapp_lid_webhook_failed", error);
+      console.error("whatsapp_lid_webhook_failed", safeErrorCode(error));
       await markIncomingMessageAsError(admin, "evolution", instance, parsed.data.mensaje_origen_id);
       return NextResponse.json({ success: false, error: "No se pudo registrar el mensaje" }, { status: 500 });
     }
@@ -360,7 +356,7 @@ export async function POST(request: Request) {
     await admin.from("mensajes_entrantes").update({ estado_procesamiento: "procesado", procesado_en: new Date().toISOString(), gasto_id: gastoId }).eq("proveedor", provider).eq("instancia", instance).eq("mensaje_origen_id", parsed.data.mensaje_origen_id);
     return NextResponse.json({ success: true, accepted: true, gastoId }, { status: 202 });
   } catch (error) {
-    console.error("whatsapp_webhook_failed", error);
+    console.error("whatsapp_webhook_failed", safeErrorCode(error));
     const provider = request.headers.get("x-whatsapp-provider") ?? "evolution";
     await markIncomingMessageAsError(createSupabaseAdminClient(), provider, instance, parsed.data.mensaje_origen_id);
     return NextResponse.json({ success: false, error: "No se pudo registrar el mensaje" }, { status: 500 });
