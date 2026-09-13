@@ -30,4 +30,15 @@ describe("public landing", () => {
     expect(screen.getAllByRole("link", { name: "Ir al dashboard" })).toHaveLength(3);
     screen.getAllByRole("link", { name: "Ir al dashboard" }).forEach((link) => expect(link).toHaveAttribute("href", "/dashboard"));
   });
+
+  it("shows the real text-based confirmation flow", async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
+    render(await Home());
+
+    expect(screen.getByText("1. Sí")).toBeInTheDocument();
+    expect(screen.getByText("2. No")).toBeInTheDocument();
+    expect(screen.getByText("Responde con 1 o 2, también puedes escribir Sí o No.")).toBeInTheDocument();
+    expect(screen.queryByText("Confirmar")).not.toBeInTheDocument();
+    expect(screen.queryByText("Corregir")).not.toBeInTheDocument();
+  });
 });
