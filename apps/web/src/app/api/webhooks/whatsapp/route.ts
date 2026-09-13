@@ -303,7 +303,7 @@ export async function POST(request: Request) {
 
     const { data: knownContact, error: knownContactError } = await admin.from("whatsapp_contactos_lid").select("numero_whatsapp").eq("instancia", instance).eq("lid", evolution.lid).maybeSingle();
     if (knownContactError) return NextResponse.json({ success: false, error: "No se pudo resolver el contacto" }, { status: 500 });
-    let resolvedNumber = knownContact?.numero_whatsapp;
+    const resolvedNumber = knownContact?.numero_whatsapp;
     if (!resolvedNumber) {
       return NextResponse.json({ success: true, ignored: true, reason: "contact_lid_requires_explicit_pairing" });
     }
