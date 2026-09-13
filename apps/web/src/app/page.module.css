@@ -211,9 +211,9 @@
 .moniMessage > strong { display: block; color: #4e40ac; font-size: 1.85rem; letter-spacing: -.055em; }
 .moniMessage > span:not(.messageLabel) { color: #6f6a80; font-size: .78rem; font-weight: 700; }
 .moniMessage p { margin-top: 20px; font-size: .87rem; font-weight: 700; }
-.messageActions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 13px; }
-.messageActions span { display: grid; place-items: center; min-height: 42px; border-radius: 12px; color: #fff; background: #7564e9; font-size: .75rem; font-weight: 800; }
-.messageActions span:last-child { color: #5545bf; background: #eeebfb; }
+.messageOptions { display: grid; gap: 5px; margin-top: 13px; padding-top: 12px; border-top: 1px solid #ece8f2; }
+.messageOptions span { color: #5545bf; font-size: .78rem; font-weight: 800; }
+.messageOptions small { margin-top: 4px; color: #817b8f; font-size: .66rem; line-height: 1.45; }
 
 .composer {
   display: flex;

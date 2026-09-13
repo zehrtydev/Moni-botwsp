@@ -103,7 +103,7 @@ function ConversationMockup() {
           <div className={styles.userMessage}>Gasté 32.000 en gasolina</div>
           <div className={styles.moniMessage}>
             <span className={styles.messageLabel}>Nuevo gasto</span><strong>$32.000</strong><span>Transporte</span><p>¿Confirmamos este gasto?</p>
-            <div className={styles.messageActions} aria-hidden="true"><span>Confirmar</span><span>Corregir</span></div>
+            <div className={styles.messageOptions}><span>1. Sí</span><span>2. No</span><small>Responde con 1 o 2, también puedes escribir Sí o No.</small></div>
           </div>
         </div>
         <div className={styles.composer} aria-hidden="true"><span>Escribe un mensaje…</span><span className={styles.sendButton}><ArrowRight size={16} /></span></div>
