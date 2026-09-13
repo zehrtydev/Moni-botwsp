@@ -1,12 +1,14 @@
 # Estado del proyecto
 
-**Actualizado:** 2026-09-05
+**Actualizado:** 2026-09-13
 
 Este estado describe evidencia del repositorio; no sustituye una verificación del entorno desplegado.
 
 ## Funciona según código y pruebas presentes
 
 - Aplicación Next.js con login, callback de autenticación y dashboard.
+- Landing pública responsive en `/`, con CTA resuelto por sesión en servidor, mockups estáticos del flujo conversacional y del dashboard, y acceso público limitado al inicio de sesión.
+- `/login` redirige en servidor a usuarios autenticados, no ofrece registro público y el cierre de sesión vuelve a `/`.
 - Vinculación de WhatsApp con formato E.164 y pairing temporal.
 - Webhook de Evolution con validación, normalización, idempotencia y manejo de errores.
 - Parsing determinista de gastos, ingresos, comandos, correcciones y presupuestos.
@@ -17,7 +19,7 @@ Este estado describe evidencia del repositorio; no sustituye una verificación d
 - Migraciones Supabase con RLS, restricciones de propiedad e índices de idempotencia.
 - Suite Vitest, pruebas de rutas y una prueba E2E smoke configuradas.
 
-El repositorio contiene 21 archivos de pruebas Vitest. `docs/testing/vps-production-compose.tdd.md` registra una ejecución previa de 109/109 pruebas, ESLint, TypeScript y auditoría sin vulnerabilidades altas; esa evidencia no se volvió a ejecutar durante esta actualización documental.
+El repositorio contiene 25 archivos de pruebas Vitest. La validación de esta actualización ejecutó 118/118 pruebas, ESLint, TypeScript y build sin errores; `npm audit --audit-level=high` terminó correctamente y reportó tres vulnerabilidades moderadas en dependencias de desarrollo de Vitest.
 
 ## Desarrollo o cobertura incompleta observable
 
