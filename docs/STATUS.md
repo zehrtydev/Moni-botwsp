@@ -19,7 +19,7 @@ Este estado describe evidencia del repositorio; no sustituye una verificación d
 - Migraciones Supabase con RLS, restricciones de propiedad e índices de idempotencia.
 - Suite Vitest, pruebas de rutas y una prueba E2E smoke configuradas.
 
-El repositorio contiene 25 archivos de pruebas Vitest. La validación de esta actualización ejecutó 118/118 pruebas, ESLint, TypeScript y build sin errores; `npm audit --audit-level=high` terminó correctamente y reportó tres vulnerabilidades moderadas en dependencias de desarrollo de Vitest.
+El repositorio contiene 25 archivos de pruebas Vitest. La validación de esta actualización ejecutó 121/121 pruebas, ESLint, TypeScript y build sin errores; `npm audit --audit-level=high` terminó correctamente y reportó tres vulnerabilidades moderadas en dependencias de desarrollo de Vitest.
 
 ## Desarrollo o cobertura incompleta observable
 
