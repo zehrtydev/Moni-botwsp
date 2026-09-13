@@ -10,9 +10,9 @@ for migration in "${migrations[@]}"; do
 done
 
 while read -r file; do
-  rg -q 'enable row level security' "$file" || { echo "Missing RLS in $file" >&2; exit 1; }
-done < <(rg -l 'create table public\.(whatsapp_|presupuestos_|ingresos|gastos|mensajes_)' "$migration_dir")
+  grep -q 'enable row level security' "$file" || { echo "Missing RLS in $file" >&2; exit 1; }
+done < <(grep -Erl 'create table public\.(whatsapp_|presupuestos_|ingresos|gastos|mensajes_)' "$migration_dir")
 
-rg -q 'whatsapp_pairing_unico_activo_por_usuario' "$migration_dir/20260903090000_harden_whatsapp_pairing.sql"
-rg -q 'contact_lid_requires_explicit_pairing' apps/web/src/app/api/webhooks/whatsapp/route.ts
+grep -q 'whatsapp_pairing_unico_activo_por_usuario' "$migration_dir/20260903090000_harden_whatsapp_pairing.sql"
+grep -q 'contact_lid_requires_explicit_pairing' apps/web/src/app/api/webhooks/whatsapp/route.ts
 echo "Supabase migration and RLS static validation passed. No migration was applied."
