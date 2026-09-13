@@ -33,8 +33,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+  const userId = user.id;
 
-  const { data: profile } = await supabase.from("usuarios").select("nombre, numero_whatsapp").eq("id", user.id).maybeSingle();
+  const { data: profile } = await supabase.from("usuarios").select("nombre, numero_whatsapp").eq("id", userId).maybeSingle();
   const params = await searchParams;
   const defaults = getCurrentMonthRange();
   const requestedStart = typeof params.desde === "string" ? params.desde : defaults.start;
@@ -42,18 +43,20 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const selectedRange = isValidDateRange(requestedStart, requestedEnd) ? { start: requestedStart, end: requestedEnd } : defaults;
   const isAutomaticMonthView = selectedRange.start === defaults.start && selectedRange.end === defaults.end;
   const previousRange = isAutomaticMonthView ? getPreviousMonthRange(selectedRange.start) : getPreviousPeriod(selectedRange.start, selectedRange.end);
-  const { data: expenses } = profile?.numero_whatsapp
-    ? await supabase.from("gastos").select("id, fecha_gasto, monto, descripcion, categoria_id").eq("usuario_id", user.id).eq("estado", "confirmado").gte("fecha_gasto", previousRange.start).lte("fecha_gasto", selectedRange.end).order("fecha_gasto", { ascending: false }).limit(500)
-    : { data: [] };
-  const { data: incomes } = profile?.numero_whatsapp
-    ? await supabase.from("ingresos").select("id, fecha_ingreso, monto, categoria_id, descripcion").eq("usuario_id", user.id).eq("estado", "confirmado").gte("fecha_ingreso", previousRange.start).lte("fecha_ingreso", selectedRange.end).order("fecha_ingreso", { ascending: false }).limit(500)
-    : { data: [] };
   const monthStart = `${selectedRange.start.slice(0, 7)}-01`;
-  const { data: budgets } = profile?.numero_whatsapp
-    ? await supabase.from("presupuestos_mensuales").select("categoria_id, monto_limite").eq("usuario_id", user.id).eq("mes", monthStart)
-    : { data: [] };
-  const categoryIds = (expenses ?? []).map((expense) => expense.categoria_id).filter((id): id is string => Boolean(id));
-  const { data: categories } = categoryIds.length ? await supabase.from("categorias").select("id, nombre").in("id", categoryIds) : { data: [] };
+  async function getExpensesWithCategories() {
+    const { data: expenses } = await supabase.from("gastos").select("id, fecha_gasto, monto, descripcion, categoria_id").eq("usuario_id", userId).eq("estado", "confirmado").gte("fecha_gasto", previousRange.start).lte("fecha_gasto", selectedRange.end).order("fecha_gasto", { ascending: false }).limit(500);
+    const categoryIds = [...new Set((expenses ?? []).map((expense) => expense.categoria_id).filter((id): id is string => Boolean(id)))];
+    const { data: categories } = categoryIds.length ? await supabase.from("categorias").select("id, nombre").in("id", categoryIds) : { data: [] };
+    return { expenses, categories };
+  }
+  const [{ expenses, categories }, { data: incomes }, { data: budgets }] = profile?.numero_whatsapp
+    ? await Promise.all([
+      getExpensesWithCategories(),
+      supabase.from("ingresos").select("id, fecha_ingreso, monto, categoria_id, descripcion").eq("usuario_id", userId).eq("estado", "confirmado").gte("fecha_ingreso", previousRange.start).lte("fecha_ingreso", selectedRange.end).order("fecha_ingreso", { ascending: false }).limit(500),
+      supabase.from("presupuestos_mensuales").select("categoria_id, monto_limite").eq("usuario_id", userId).eq("mes", monthStart),
+    ])
+    : [{ expenses: [], categories: [] }, { data: [] }, { data: [] }];
   const categoryNames = new Map((categories ?? []).map((category) => [category.id, category.nombre]));
   const monthExpenses = (expenses ?? []).filter((expense) => expense.fecha_gasto >= selectedRange.start && expense.fecha_gasto <= selectedRange.end);
   const previousExpenses = (expenses ?? []).filter((expense) => expense.fecha_gasto >= previousRange.start && expense.fecha_gasto <= previousRange.end);
