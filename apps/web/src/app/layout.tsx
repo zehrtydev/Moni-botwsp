@@ -3,8 +3,8 @@ import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
 
 export const metadata: Metadata = {
-  title: "Moni — Registro de gastos",
-  description: "Registro de gastos por WhatsApp",
+  title: "Moni — Registra tus gastos por WhatsApp",
+  description: "Registra gastos por WhatsApp y consulta tus movimientos, estadísticas y presupuestos desde tu dashboard de Moni.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [

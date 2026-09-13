@@ -8,7 +8,8 @@ Esta descripción se basa en el código, migraciones y configuración presentes 
 
 Superficies principales:
 
-- `/login`: autenticación y confirmación de correo.
+- `/`: landing pública renderizada en servidor; consulta la sesión únicamente para dirigir el CTA a `/login` o `/dashboard` sin ocultar la landing a usuarios autenticados.
+- `/login`: inicio de sesión por correo y contraseña; no expone registro público y redirige en servidor a `/dashboard` cuando ya existe una sesión.
 - `/auth/callback`: Route Handler de Next.js para intercambiar el código de autenticación por una sesión y redirigir al dashboard; no es una página UI.
 - `/dashboard`: resumen principal, vinculación de WhatsApp y movimientos recientes.
 - `/historial`: gastos e ingresos con filtros y acciones de historial.
@@ -20,6 +21,8 @@ Superficies principales:
 - `/api/account/whatsapp`: vinculación y código temporal de pairing.
 - `/api/webhooks/whatsapp`: entrada de eventos de Evolution.
 - `/api/health`: configuración mínima y conectividad con Supabase.
+
+Las páginas privadas validan la sesión con el cliente Supabase SSR y redirigen a `/login` cuando no hay usuario. Al cerrar sesión desde una página privada, el cliente invalida la sesión y vuelve a la landing pública `/`.
 
 ## Datos y seguridad
 
