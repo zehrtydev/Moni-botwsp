@@ -5,6 +5,8 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SectionLink } from "@/components/section-link";
 
+export const dynamic = "force-dynamic";
+
 function getMonthStart() {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit" }).formatToParts(new Date());
   return `${parts.find((part) => part.type === "year")?.value}-${parts.find((part) => part.type === "month")?.value}-01`;

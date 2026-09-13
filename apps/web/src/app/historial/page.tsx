@@ -6,6 +6,8 @@ import { ArrowLeft, Sparkles } from "lucide-react";
 import { ExpenseHistoryRow } from "@/components/expense-history-row";
 import { IncomeHistoryRow } from "@/components/income-history-row";
 
+export const dynamic = "force-dynamic";
+
 const filters = [
   { value: "todos", label: "Todos" },
   { value: "confirmado", label: "Confirmados" },
