@@ -19,22 +19,15 @@ export async function POST(request: Request) {
   }
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ success: false, error: "Número E.164 no válido" }, { status: 400 });
-  const { error } = await createSupabaseAdminClient()
-    .from("usuarios")
-    .upsert({
-      id: user.id,
-      numero_whatsapp: parsed.data.numero_whatsapp,
-      numero_whatsapp_actualizado_en: new Date().toISOString(),
-  }, { onConflict: "id" });
-  if (error) return NextResponse.json({ success: false, error: "No se pudo vincular el número" }, { status: 409 });
-
   const pairingCode = generatePairingCode();
   const admin = createSupabaseAdminClient();
-  await admin
+  const { error: invalidationError } = await admin
     .from("whatsapp_vinculaciones_pendientes")
     .update({ usado_en: new Date().toISOString() })
     .eq("usuario_id", user.id)
     .is("usado_en", null);
+  if (invalidationError) return NextResponse.json({ success: false, error: "No se pudo preparar la vinculación" }, { status: 409 });
+
   const { error: pairingError } = await admin
     .from("whatsapp_vinculaciones_pendientes")
     .insert({

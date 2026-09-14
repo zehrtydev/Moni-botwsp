@@ -278,25 +278,20 @@ export async function POST(request: Request) {
     const instance = request.headers.get("x-whatsapp-instance") ?? evolution.instance;
 
     if (isPairingCode(evolution.message.contenido)) {
-      const { data: pendingPairing, error: pairingError } = await admin
-        .from("whatsapp_vinculaciones_pendientes")
-        .select("id, usuario_id, numero_whatsapp")
-        .eq("codigo_hash", hashPairingCode(evolution.message.contenido))
-        .is("usado_en", null)
-        .gt("expira_en", new Date().toISOString())
-        .maybeSingle();
+      const { data: completedPairing, error: pairingError } = await admin.rpc("completar_vinculacion_whatsapp", {
+        p_codigo_hash: hashPairingCode(evolution.message.contenido),
+        p_instancia: instance,
+        p_lid: evolution.lid,
+      });
+      if (pairingError?.code === "23505") {
+        return NextResponse.json({ success: false, error: "El número ya está vinculado a otra cuenta" }, { status: 409 });
+      }
       if (pairingError) return NextResponse.json({ success: false, error: "No se pudo validar el código" }, { status: 500 });
-      if (pendingPairing) {
-        const { error: mappingError } = await admin.from("whatsapp_contactos_lid").upsert({
-          instancia: instance,
-          lid: evolution.lid,
-          numero_whatsapp: pendingPairing.numero_whatsapp,
-          actualizado_en: new Date().toISOString(),
-        }, { onConflict: "instancia,lid" });
-        if (mappingError) return NextResponse.json({ success: false, error: "No se pudo asociar el contacto" }, { status: 500 });
-        const { error: usedError } = await admin.from("whatsapp_vinculaciones_pendientes").update({ usado_en: new Date().toISOString() }).eq("id", pendingPairing.id);
-        if (usedError) return NextResponse.json({ success: false, error: "No se pudo completar la vinculación" }, { status: 500 });
-        await reply(pendingPairing.numero_whatsapp, "¡Listo! ✅ Este chat ya está conectado con tu cuenta de Moni 💜\n\nAhora puedes enviarme tu primer gasto, por ejemplo: *Gasté 20 lucas en almuerzo*.");
+      const pairedNumber = completedPairing && typeof completedPairing === "object" && "numero_whatsapp" in completedPairing
+        ? completedPairing.numero_whatsapp
+        : null;
+      if (typeof pairedNumber === "string") {
+        await reply(pairedNumber, "¡Listo! ✅ Este chat ya está conectado con tu cuenta de Moni 💜\n\nAhora puedes enviarme tu primer gasto, por ejemplo: *Gasté 20 lucas en almuerzo*.");
         return NextResponse.json({ success: true, paired: true }, { status: 202 });
       }
     }
