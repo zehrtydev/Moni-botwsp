@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-**Actualizado:** 2026-09-13
+**Actualizado:** 2026-09-14
 
 Este estado describe evidencia del repositorio; no sustituye una verificación del entorno desplegado.
 
@@ -9,7 +9,7 @@ Este estado describe evidencia del repositorio; no sustituye una verificación d
 - Aplicación Next.js con login, callback de autenticación y dashboard.
 - Landing pública responsive en `/`, con CTA resuelto por sesión en servidor, mockups estáticos del flujo conversacional y del dashboard, y acceso público limitado al inicio de sesión.
 - `/login` redirige en servidor a usuarios autenticados, no ofrece registro público y el cierre de sesión vuelve a `/`.
-- Vinculación de WhatsApp con formato E.164 y pairing temporal.
+- Vinculación de WhatsApp con formato E.164 y pairing temporal; el número solo se asigna al usuario al consumir un código válido mediante una operación transaccional que también retira mappings LID obsoletos.
 - Webhook de Evolution con validación, normalización, idempotencia y manejo de errores.
 - Parsing determinista de gastos, ingresos, comandos, correcciones y presupuestos.
 - Interpretación opcional de gastos mediante proveedor OpenAI-compatible/Ollama.
@@ -19,7 +19,7 @@ Este estado describe evidencia del repositorio; no sustituye una verificación d
 - Migraciones Supabase con RLS, restricciones de propiedad e índices de idempotencia.
 - Suite Vitest, pruebas de rutas y una prueba E2E smoke configuradas.
 
-El repositorio contiene 26 archivos de pruebas Vitest. La validación de esta actualización ejecutó 122/122 pruebas, ESLint, TypeScript y build sin errores; `npm audit --audit-level=high` terminó correctamente y reportó tres vulnerabilidades moderadas en dependencias de desarrollo de Vitest.
+El repositorio contiene 28 archivos de pruebas Vitest. La validación de esta actualización ejecutó 130/130 pruebas, ESLint y TypeScript sin errores. El nuevo archivo pgTAP de pairing pasó 37/37 pruebas contra Supabase local.
 
 ## Desarrollo o cobertura incompleta observable
 
@@ -30,6 +30,7 @@ El repositorio contiene 26 archivos de pruebas Vitest. La validación de esta ac
 
 ## Problemas o riesgos verificables
 
+- `supabase test db` mantiene un fallo preexistente en `001_foundation.sql`: la prueba espera diez categorías activas, mientras que el seed actual contiene quince. El nuevo `002_whatsapp_pairing.sql` pasa 37/37; la carpeta completa queda en 57/58 por esa contradicción entre el test fundacional y `supabase/seed.sql`.
 - La documentación ya fue normalizada para usar `https://moni.zehrty.dev` como dominio canónico actual de producción. Sigue pendiente verificar en el panel real de Supabase que **Site URL** y **Redirect URLs** coincidan con `https://moni.zehrty.dev`; esto no puede comprobarse únicamente desde el repositorio.
 - El PRD describe `n8n` como superficie de webhook, pero el código actual procesa directamente en `/api/webhooks/whatsapp`; no hay configuración de n8n en el árbol inspeccionado.
 - El PRD histórico declara fuera de alcance presupuestos e ingresos, aunque ambos están implementados en código y migraciones.

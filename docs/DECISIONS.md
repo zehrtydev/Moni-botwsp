@@ -50,3 +50,10 @@ Formato ADR simple. Solo se registran decisiones que pueden demostrarse desde el
 - **Decisión:** Caddy, web, Ollama, Evolution, PostgreSQL y Redis se administran con `docker-compose.prod.yml`; Supabase permanece alojado externamente.
 - **Evidencia:** Compose, Caddyfile, workflow y [DEPLOYMENT.md](DEPLOYMENT.md).
 - **Motivo:** La documentación indica que se adopta la pila existente del VPS; no se documenta el motivo original de separar Supabase.
+
+## ADR-008 — La vinculación de WhatsApp se completa atómicamente después de verificar el código
+
+- **Estado:** Implementado.
+- **Decisión:** Iniciar el pairing solo crea un registro pendiente. El webhook asigna el número al usuario, elimina mappings LID del número anterior y mappings obsoletos del número que se reasigna, crea el mapping actual y consume el pairing mediante una única función transaccional `SECURITY DEFINER`, ejecutable solo por `service_role`.
+- **Evidencia:** `apps/web/src/app/api/account/whatsapp/route.ts`, `apps/web/src/app/api/webhooks/whatsapp/route.ts` y la migración `20260914090000_complete_whatsapp_pairing_atomically.sql`.
+- **Motivo:** Evitar que un número no verificado quede asociado temporalmente a una cuenta, que un fallo parcial o una carrera deje inconsistentes el usuario, el contacto LID y el pairing, o que un LID antiguo termine resolviéndose contra un nuevo propietario del número.
