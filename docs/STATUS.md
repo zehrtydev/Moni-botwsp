@@ -8,7 +8,7 @@ Este estado describe evidencia del repositorio; no sustituye una verificación d
 
 - Aplicación Next.js con login, callback de autenticación y dashboard.
 - Landing pública responsive en `/`, con CTA resuelto por sesión en servidor, mockups estáticos del flujo conversacional y del dashboard, y acceso público limitado al inicio de sesión.
-- `/login` redirige en servidor a usuarios autenticados, no ofrece registro público y el cierre de sesión vuelve a `/`.
+- `/login` redirige en servidor a usuarios autenticados y ofrece inicio de sesión o registro público mediante Supabase Auth; el cierre de sesión vuelve a `/`.
 - Vinculación de WhatsApp con formato E.164 y pairing temporal; el número solo se asigna al usuario al consumir un código válido mediante una operación transaccional que también retira mappings LID obsoletos.
 - Webhook de Evolution con validación, normalización, idempotencia y manejo de errores.
 - Parsing determinista de gastos, ingresos, comandos, correcciones y presupuestos.
@@ -19,7 +19,7 @@ Este estado describe evidencia del repositorio; no sustituye una verificación d
 - Migraciones Supabase con RLS, restricciones de propiedad e índices de idempotencia.
 - Suite Vitest, pruebas de rutas y una prueba E2E smoke configuradas.
 
-El repositorio contiene 28 archivos de pruebas Vitest. La validación de esta actualización ejecutó 130/130 pruebas, ESLint y TypeScript sin errores. El nuevo archivo pgTAP de pairing pasó 37/37 pruebas contra Supabase local.
+El repositorio contiene 28 archivos de pruebas Vitest. La validación de esta actualización ejecutó 136/136 pruebas, ESLint y TypeScript sin errores. El nuevo archivo pgTAP de pairing pasó 37/37 pruebas contra Supabase local.
 
 ## Desarrollo o cobertura incompleta observable
 
