@@ -278,13 +278,31 @@ export async function POST(request: Request) {
     const instance = request.headers.get("x-whatsapp-instance") ?? evolution.instance;
 
     if (isPairingCode(evolution.message.contenido)) {
+      const pairingCodeHash = hashPairingCode(evolution.message.contenido);
       const { data: completedPairing, error: pairingError } = await admin.rpc("completar_vinculacion_whatsapp", {
-        p_codigo_hash: hashPairingCode(evolution.message.contenido),
+        p_codigo_hash: pairingCodeHash,
         p_instancia: instance,
         p_lid: evolution.lid,
       });
       if (pairingError?.code === "23505") {
-        return NextResponse.json({ success: false, error: "El número ya está vinculado a otra cuenta" }, { status: 409 });
+        try {
+          const { data: pendingPairing, error: pendingPairingError } = await admin
+            .from("whatsapp_vinculaciones_pendientes")
+            .select("numero_whatsapp")
+            .eq("codigo_hash", pairingCodeHash)
+            .is("usado_en", null)
+            .gt("expira_en", new Date().toISOString())
+            .maybeSingle();
+          const replyTarget = pendingPairing?.numero_whatsapp;
+          if (pendingPairingError || typeof replyTarget !== "string" || !replyTarget) {
+            console.error("whatsapp_pairing_conflict_reply_target_missing", safeErrorCode(pendingPairingError));
+          } else {
+            await reply(replyTarget, "Este número ya está vinculado a otra cuenta de Moni. Desvincúlalo de esa cuenta antes de usarlo aquí.");
+          }
+        } catch (error) {
+          console.error("whatsapp_pairing_conflict_reply_target_missing", safeErrorCode(error));
+        }
+        return NextResponse.json({ success: true, pairingConflict: true }, { status: 202 });
       }
       if (pairingError) return NextResponse.json({ success: false, error: "No se pudo validar el código" }, { status: 500 });
       const pairedNumber = completedPairing && typeof completedPairing === "object" && "numero_whatsapp" in completedPairing
