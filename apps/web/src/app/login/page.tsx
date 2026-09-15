@@ -10,15 +10,15 @@ export const metadata: Metadata = {
   title: "Iniciar sesión — Moni",
 };
 
-export default async function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (user) redirect("/dashboard");
+  const params = await searchParams;
+  const initialMode = params.mode === "register" ? "register" : "login";
 
   return <main className="shell landing"><section className="card auth-card">
     <Link className="brand-mark" href="/"><span className="brand-dot" aria-hidden="true" /> moni</Link>
-    <p className="eyebrow">Qué bueno verte</p><h1>Iniciar sesión</h1>
-    <p className="muted">Entra para revisar tus movimientos, estadísticas y presupuestos.</p>
-    <LoginForm />
+    <LoginForm initialMode={initialMode} />
   </section></main>;
 }

@@ -30,15 +30,20 @@ const capabilities = [
 export default async function Home() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const cta = user
+  const primaryCta = user
     ? { href: "/dashboard", label: "Ir al dashboard" }
-    : { href: "/login", label: "Iniciar sesión" };
+    : { href: "/login?mode=register", label: "Empezar ahora" };
 
   return (
     <main className={styles.page}>
       <nav className={styles.navbar} aria-label="Navegación principal">
         <Link className={styles.brand} href="/" aria-label="Moni, inicio">moni<span className={styles.brandDot} aria-hidden="true" /></Link>
-        <Link className={styles.navCta} href={cta.href}>{cta.label}</Link>
+        {user
+          ? <Link className={styles.navCta} href="/dashboard">Ir al dashboard</Link>
+          : <div className={styles.navActions}>
+            <Link className={styles.navCta} href="/login">Iniciar sesión</Link>
+            <Link className={styles.navPrimaryCta} href="/login?mode=register">Registrarse</Link>
+          </div>}
       </nav>
 
       <section className={styles.hero} aria-labelledby="landing-title">
@@ -46,7 +51,7 @@ export default async function Home() {
           <p className={styles.eyebrow}>Tu dinero, más claro</p>
           <h1 id="landing-title">Tus gastos, registrados por WhatsApp.</h1>
           <p className={styles.heroText}>Escríbele a Moni lo que gastaste. Moni organiza el movimiento y lo deja listo para que lo revises cuando quieras.</p>
-          <Link className={styles.primaryCta} href={cta.href}>{cta.label}<ArrowRight size={18} aria-hidden="true" /></Link>
+          <Link className={styles.primaryCta} href={primaryCta.href}>{primaryCta.label}<ArrowRight size={18} aria-hidden="true" /></Link>
         </div>
         <ConversationMockup />
       </section>
@@ -82,7 +87,7 @@ export default async function Home() {
         <p className={styles.eyebrow}>Moni te acompaña</p>
         <h2 id="final-cta-title">Registrar tus gastos puede ser fácil.</h2>
         <p>Empieza por lo más simple: contarle a Moni en qué gastaste.</p>
-        <Link className={styles.primaryCta} href={cta.href}>{cta.label}<ArrowRight size={18} aria-hidden="true" /></Link>
+        <Link className={styles.primaryCta} href={primaryCta.href}>{primaryCta.label}<ArrowRight size={18} aria-hidden="true" /></Link>
       </section>
 
       <footer className={styles.footer}>

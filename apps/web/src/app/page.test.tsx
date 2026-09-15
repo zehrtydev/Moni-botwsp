@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Home from "./page";
 
@@ -12,14 +12,18 @@ describe("public landing", () => {
   beforeEach(() => getUser.mockReset());
   afterEach(cleanup);
 
-  it("shows the approved public landing and login CTAs to visitors", async () => {
+  it("offers login and direct registration CTAs to visitors", async () => {
     getUser.mockResolvedValue({ data: { user: null } });
     render(await Home());
 
     expect(screen.getByRole("heading", { level: 1, name: "Tus gastos, registrados por WhatsApp." })).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: "Iniciar sesión" })).toHaveLength(3);
-    screen.getAllByRole("link", { name: "Iniciar sesión" }).forEach((link) => expect(link).toHaveAttribute("href", "/login"));
-    expect(screen.queryByText(/crear cuenta|registrarse|comenzar gratis/i)).not.toBeInTheDocument();
+    const navbar = screen.getByRole("navigation", { name: "Navegación principal" });
+    expect(within(navbar).getByRole("link", { name: "Iniciar sesión" })).toHaveAttribute("href", "/login");
+    expect(within(navbar).getByRole("link", { name: "Registrarse" })).toHaveAttribute("href", "/login?mode=register");
+    const hero = screen.getByRole("region", { name: "Tus gastos, registrados por WhatsApp." });
+    expect(within(hero).getByRole("link", { name: "Empezar ahora" })).toHaveAttribute("href", "/login?mode=register");
+    const finalCta = screen.getByRole("region", { name: "Registrar tus gastos puede ser fácil." });
+    expect(within(finalCta).getByRole("link", { name: "Empezar ahora" })).toHaveAttribute("href", "/login?mode=register");
   });
 
   it("links authenticated users to the dashboard without hiding the landing", async () => {
@@ -29,6 +33,8 @@ describe("public landing", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Tus gastos, registrados por WhatsApp." })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Ir al dashboard" })).toHaveLength(3);
     screen.getAllByRole("link", { name: "Ir al dashboard" }).forEach((link) => expect(link).toHaveAttribute("href", "/dashboard"));
+    expect(screen.queryByRole("link", { name: "Registrarse" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Empezar ahora" })).not.toBeInTheDocument();
   });
 
   it("shows the real text-based confirmation flow", async () => {

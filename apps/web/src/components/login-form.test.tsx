@@ -46,6 +46,9 @@ describe("LoginForm", () => {
     const user = userEvent.setup();
     render(<LoginForm />);
 
+    expect(screen.getByText("Qué bueno verte")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Iniciar sesión" })).toBeInTheDocument();
+    expect(screen.getByText("Entra para revisar tus movimientos, estadísticas y presupuestos.")).toBeInTheDocument();
     const emailInput = screen.getByRole("textbox", { name: "Correo electrónico" });
     const passwordInput = screen.getByLabelText("Contraseña");
     await user.type(emailInput, "moni@example.com");
@@ -60,6 +63,30 @@ describe("LoginForm", () => {
     expect(passwordInput).toHaveAttribute("autocomplete", "new-password");
     expect(passwordInput).toHaveValue("secreto1");
     expect(screen.getByRole("button", { name: "Crear cuenta" })).toBeInTheDocument();
+    expect(screen.getByText("Empieza con Moni")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Crea tu cuenta" })).toBeInTheDocument();
+    expect(screen.getByText("Empieza a organizar tus gastos con Moni.")).toBeInTheDocument();
+  });
+
+  it("starts in registration mode when requested and can toggle back to login", async () => {
+    const user = userEvent.setup();
+    render(<LoginForm initialMode="register" />);
+
+    expect(screen.getByRole("form", { name: "Formulario de registro" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Nombre" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Contraseña")).toHaveAttribute("autocomplete", "new-password");
+    expect(screen.getByText("Empieza con Moni")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Crea tu cuenta" })).toBeInTheDocument();
+    expect(screen.getByText("Empieza a organizar tus gastos con Moni.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Ya tengo cuenta" }));
+
+    expect(screen.getByRole("form", { name: "Formulario de acceso" })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Nombre" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Entrar" })).toBeInTheDocument();
+    expect(screen.getByText("Qué bueno verte")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Iniciar sesión" })).toBeInTheDocument();
+    expect(screen.getByText("Entra para revisar tus movimientos, estadísticas y presupuestos.")).toBeInTheDocument();
   });
 
   it("signs up with a trimmed name and opens the dashboard when a session exists", async () => {

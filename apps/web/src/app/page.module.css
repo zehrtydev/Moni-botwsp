@@ -39,7 +39,13 @@
   box-shadow: inset 2px 2px 3px rgba(255, 255, 255, .65), 2px 3px 7px rgba(155, 98, 72, .24);
 }
 
-.navCta, .primaryCta {
+.navActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.navCta, .navPrimaryCta, .primaryCta {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -55,6 +61,13 @@
   background: rgba(255, 255, 255, .7);
   border: 1px solid rgba(255, 255, 255, .94);
   box-shadow: 7px 8px 18px rgba(90, 75, 124, .1), inset 1px 1px 0 #fff;
+}
+
+.navPrimaryCta {
+  padding: 0 20px;
+  color: #fff;
+  background: #7564e9;
+  box-shadow: 7px 8px 18px rgba(83, 67, 177, .22), inset 1px 1px 0 rgba(255, 255, 255, .35);
 }
 
 .hero {
@@ -337,12 +350,12 @@
 .footer p:nth-child(2) { text-align: center; }
 
 @media (hover: hover) and (pointer: fine) {
-  .navCta:hover, .primaryCta:hover { transform: translateY(-2px); }
+  .navCta:hover, .navPrimaryCta:hover, .primaryCta:hover { transform: translateY(-2px); }
   .navCta:hover { box-shadow: 9px 11px 21px rgba(90, 75, 124, .15), inset 1px 1px 0 #fff; }
-  .primaryCta:hover { background: #6555d6; box-shadow: 11px 14px 27px rgba(83, 67, 177, .3), inset 1px 1px 0 rgba(255, 255, 255, .35); }
+  .navPrimaryCta:hover, .primaryCta:hover { background: #6555d6; box-shadow: 11px 14px 27px rgba(83, 67, 177, .3), inset 1px 1px 0 rgba(255, 255, 255, .35); }
 }
 
-.navCta:focus-visible, .primaryCta:focus-visible, .brand:focus-visible { outline: 3px solid rgba(85, 69, 191, .38); outline-offset: 4px; }
+.navCta:focus-visible, .navPrimaryCta:focus-visible, .primaryCta:focus-visible, .brand:focus-visible { outline: 3px solid rgba(85, 69, 191, .38); outline-offset: 4px; }
 
 @media (max-width: 900px) {
   .hero { grid-template-columns: 1fr; min-height: auto; padding: 70px 0 100px; }
@@ -357,7 +370,10 @@
 @media (max-width: 600px) {
   .navbar, .hero, .stepsSection, .dashboardSection, .footer { width: min(100% - 28px, 560px); }
   .navbar { min-height: 78px; }
-  .navCta { min-height: 44px; padding-inline: 15px; font-size: .82rem; }
+  .navActions { gap: 8px; }
+  .navCta, .navPrimaryCta { min-height: 44px; }
+  .navCta { padding-inline: 15px; font-size: .82rem; }
+  .navActions .navCta, .navPrimaryCta { padding-inline: 12px; font-size: .78rem; }
   .hero { gap: 58px; padding: 55px 0 80px; }
   .hero h1 { margin: 17px 0 22px; font-size: clamp(2.8rem, 14vw, 4rem); }
   .heroText { font-size: 1rem; }
@@ -381,5 +397,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .navCta, .primaryCta { transition: none; }
+  .navCta, .navPrimaryCta, .primaryCta { transition: none; }
 }
