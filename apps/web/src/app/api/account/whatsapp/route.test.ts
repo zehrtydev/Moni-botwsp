@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { hashPairingCode } from "@/lib/whatsapp-pairing";
 
 const {
   adminFrom,
@@ -14,10 +15,10 @@ const {
 
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseAdminClient, createSupabaseServerClient }));
 vi.mock("@/lib/evolution", () => ({ sendEvolutionText }));
-vi.mock("@/lib/whatsapp-pairing", () => ({
+vi.mock("@/lib/whatsapp-pairing", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/whatsapp-pairing")>(),
   checkPairingRateLimit: vi.fn(() => true),
-  generatePairingCode: vi.fn(() => "MONI-AB2CD3"),
-  hashPairingCode: vi.fn(() => "pairing-code-hash"),
+  generatePairingCode: vi.fn(() => "AB2 CD3"),
 }));
 
 function requestFor(numeroWhatsapp: string) {
@@ -29,6 +30,8 @@ function requestFor(numeroWhatsapp: string) {
 }
 
 describe("POST /api/account/whatsapp", () => {
+  afterEach(() => vi.restoreAllMocks());
+
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
@@ -64,9 +67,29 @@ describe("POST /api/account/whatsapp", () => {
     expect(insert).toHaveBeenCalledWith({
       usuario_id: "user-1",
       numero_whatsapp: "+573001234567",
-      codigo_hash: "pairing-code-hash",
+      codigo_hash: hashPairingCode("AB2CD3"),
       expira_en: expect.any(String),
     });
-    expect(sendEvolutionText).toHaveBeenCalledWith("+573001234567", expect.stringContaining("MONI-AB2CD3"));
+    expect(sendEvolutionText).toHaveBeenCalledWith("+573001234567", expect.stringContaining("AB2 CD3"));
+  });
+
+  it("reports a failed delivery while leaving only a pending pairing", async () => {
+    const invalidationQuery = {
+      update: vi.fn(() => invalidationQuery),
+      eq: vi.fn(() => invalidationQuery),
+      is: vi.fn().mockResolvedValue({ error: null }),
+    };
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    adminFrom.mockReturnValueOnce(invalidationQuery).mockReturnValueOnce({ insert });
+    sendEvolutionText.mockRejectedValue(new Error("delivery failed"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const { POST } = await import("./route");
+    const response = await POST(requestFor("+573001234567"));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ success: true, welcomeSent: false });
+    expect(insert).toHaveBeenCalledOnce();
+    expect(adminFrom).not.toHaveBeenCalledWith("usuarios");
   });
 });

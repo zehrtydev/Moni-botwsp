@@ -23,6 +23,6 @@ describe("getAuthErrorMessage", () => {
   });
 
   it("keeps the confirmation message when Supabase requires email confirmation", () => {
-    expect(getSignupSuccessMessage(false)).toBe("Cuenta creada. Revisa tu correo si Supabase solicita confirmación.");
+    expect(getSignupSuccessMessage(false)).toBe("Cuenta creada. Revisa tu correo para confirmar tu cuenta.");
   });
 });

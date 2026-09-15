@@ -21,5 +21,5 @@ export function getAuthErrorMessage(error: unknown, registering: boolean): strin
 }
 
 export function getSignupSuccessMessage(hasSession: boolean): string {
-  return hasSession ? "Cuenta creada correctamente. Ya puedes comenzar." : "Cuenta creada. Revisa tu correo si Supabase solicita confirmación.";
+  return hasSession ? "Cuenta creada correctamente. Ya puedes comenzar." : "Cuenta creada. Revisa tu correo para confirmar tu cuenta.";
 }
