@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { hashPairingCode } from "@/lib/whatsapp-pairing";
 
 const { adminFrom, adminRpc, createSupabaseAdminClient, sendEvolutionText } = vi.hoisted(() => ({
@@ -53,7 +53,21 @@ function mockUnknownContact() {
   adminFrom.mockReturnValue(query);
 }
 
+function mockPendingPairingLookup(data: { numero_whatsapp: string } | null, error: unknown = null) {
+  const query = {
+    select: vi.fn(() => query),
+    eq: vi.fn(() => query),
+    is: vi.fn(() => query),
+    gt: vi.fn(() => query),
+    maybeSingle: vi.fn().mockResolvedValue({ data, error }),
+  };
+  adminFrom.mockReturnValue(query);
+  return query;
+}
+
 describe("WhatsApp webhook processing", () => {
+  afterEach(() => vi.restoreAllMocks());
+
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
@@ -157,14 +171,51 @@ describe("WhatsApp webhook processing", () => {
     expect(sendEvolutionText).not.toHaveBeenCalled();
   });
 
-  it("returns a controlled conflict without completing the pairing", async () => {
+  it("acknowledges a pairing conflict and replies only to the pending pairing number", async () => {
     adminRpc.mockResolvedValue({ data: null, error: { code: "23505", message: "WHATSAPP_NUMBER_ALREADY_LINKED" } });
+    const pendingPairingQuery = mockPendingPairingLookup({ numero_whatsapp: "+573001112233" });
+    const baseLidPayload = lidPayload("AB2 CD3");
+    const incomingPayload = { ...baseLidPayload, data: { ...baseLidPayload.data, sender: "+579998887766" } };
+
+    const { POST } = await import("./route");
+    const response = await POST(requestFor(incomingPayload));
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({ success: true, pairingConflict: true });
+    expect(adminFrom).toHaveBeenCalledWith("whatsapp_vinculaciones_pendientes");
+    expect(pendingPairingQuery.select).toHaveBeenCalledWith("numero_whatsapp");
+    expect(pendingPairingQuery.eq).toHaveBeenCalledWith("codigo_hash", hashPairingCode("AB2 CD3"));
+    expect(pendingPairingQuery.is).toHaveBeenCalledWith("usado_en", null);
+    expect(pendingPairingQuery.gt).toHaveBeenCalledWith("expira_en", expect.any(String));
+    expect(sendEvolutionText).toHaveBeenCalledWith(
+      "+573001112233",
+      "Este número ya está vinculado a otra cuenta de Moni. Desvincúlalo de esa cuenta antes de usarlo aquí.",
+    );
+    expect(sendEvolutionText).not.toHaveBeenCalledWith("+579998887766", expect.any(String));
+  });
+
+  it("acknowledges a pairing conflict without replying when the pending number is unavailable", async () => {
+    adminRpc.mockResolvedValue({ data: null, error: { code: "23505", message: "WHATSAPP_NUMBER_ALREADY_LINKED" } });
+    mockPendingPairingLookup(null);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     const { POST } = await import("./route");
     const response = await POST(requestFor(lidPayload("AB2 CD3")));
 
-    expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toEqual({ success: false, error: "El número ya está vinculado a otra cuenta" });
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({ success: true, pairingConflict: true });
+    expect(sendEvolutionText).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith("whatsapp_pairing_conflict_reply_target_missing", "unknown_error");
+  });
+
+  it("keeps returning 500 for technical pairing RPC errors", async () => {
+    adminRpc.mockResolvedValue({ data: null, error: { code: "P0001", message: "database unavailable" } });
+
+    const { POST } = await import("./route");
+    const response = await POST(requestFor(lidPayload("AB2 CD3")));
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ success: false, error: "No se pudo validar el código" });
     expect(adminFrom).not.toHaveBeenCalled();
     expect(sendEvolutionText).not.toHaveBeenCalled();
   });

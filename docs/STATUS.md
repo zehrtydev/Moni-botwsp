@@ -10,7 +10,7 @@ Este estado describe evidencia del repositorio; no sustituye una verificación d
 - Landing pública responsive en `/`, con CTA resuelto por sesión en servidor, mockups estáticos del flujo conversacional y del dashboard, y acciones públicas diferenciadas para iniciar sesión o abrir directamente el registro.
 - `/login` redirige en servidor a usuarios autenticados, abre el registro desde `?mode=register` y ofrece inicio de sesión o registro público mediante Supabase Auth; el cierre de sesión vuelve a `/`.
 - Vinculación de WhatsApp con formato E.164 y pairing temporal de seis caracteres seguros mostrado como `AB2 CD3` (también acepta `AB2CD3`, minúsculas y espacios exteriores); el número solo se asigna al usuario al consumir un código válido mediante una operación transaccional que también retira mappings LID obsoletos.
-- Webhook de Evolution con validación, normalización, idempotencia y manejo de errores.
+- Webhook de Evolution con validación, normalización, idempotencia y manejo de errores; los conflictos de pairing con números ya vinculados se reconocen con 2xx y no provocan reintentos del proveedor.
 - Parsing determinista de gastos, ingresos, comandos, correcciones y presupuestos.
 - Interpretación opcional de gastos mediante proveedor OpenAI-compatible/Ollama.
 - Historial, edición/eliminación de gastos y eliminación de ingresos autenticadas.
@@ -19,7 +19,7 @@ Este estado describe evidencia del repositorio; no sustituye una verificación d
 - Migraciones Supabase con RLS, restricciones de propiedad e índices de idempotencia.
 - Suite Vitest, pruebas de rutas y una prueba E2E smoke configuradas.
 
-El repositorio contiene 29 archivos de pruebas Vitest. La validación de esta actualización ejecutó 176/176 pruebas de la suite completa, ESLint y TypeScript sin errores directamente en este worktree. El formulario informa del envío pendiente de verificación y presenta el fallo de envío como error, sin anunciar una vinculación completada. El archivo pgTAP de pairing pasó 37/37 pruebas contra Supabase local en la validación anterior; no se volvió a ejecutar en esta actualización.
+El repositorio contiene 29 archivos de pruebas Vitest. La validación de esta actualización ejecutó 178/178 pruebas de la suite completa, ESLint y TypeScript sin errores directamente en este worktree. El formulario informa del envío pendiente de verificación y presenta el fallo de envío como error, sin anunciar una vinculación completada. El archivo pgTAP de pairing pasó 37/37 pruebas contra Supabase local en la validación anterior; no se volvió a ejecutar en esta actualización.
 
 ## Desarrollo o cobertura incompleta observable
 
