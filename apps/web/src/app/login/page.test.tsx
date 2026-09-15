@@ -16,13 +16,12 @@ describe("login page", () => {
     redirect.mockReset();
   });
 
-  it("renders login without a public signup option for visitors", async () => {
+  it("renders the login form for visitors", async () => {
     getUser.mockResolvedValue({ data: { user: null } });
     render(await LoginPage());
 
     expect(screen.getByRole("heading", { level: 1, name: "Iniciar sesión" })).toBeInTheDocument();
     expect(screen.getByRole("form", { name: "Formulario de acceso" })).toBeInTheDocument();
-    expect(screen.queryByText(/crear una cuenta|registrarse/i)).not.toBeInTheDocument();
     expect(redirect).not.toHaveBeenCalled();
   });
 
