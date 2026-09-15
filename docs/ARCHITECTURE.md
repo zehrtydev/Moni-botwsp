@@ -42,7 +42,9 @@ Evolution recibe la instancia y envía eventos `messages.upsert` al webhook. La 
 6. Identifica la cuenta por el número vinculado; si hay un LID, mantiene un mapa persistente.
 7. Envía respuestas por Evolution, con fallback de botones a `1`/`2`.
 
-El pairing genera un código `MONI-...`, guarda únicamente su hash con expiración de 15 minutos y lo envía al número solicitado.
+El pairing genera seis caracteres criptográficamente aleatorios del alfabeto `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` y los muestra en dos grupos de tres: `AB2 CD3`. `normalizePairingCode` elimina espacios exteriores, convierte a mayúsculas y retira únicamente el espacio entre los dos grupos. Antes de calcular SHA-256 se valida que queden exactamente seis caracteres del alfabeto seguro: `AB2 CD3`, `AB2CD3` y ` ab2 cd3 ` producen el mismo hash. Otros separadores, espacios internos y el prefijo antiguo se rechazan.
+
+Se guarda únicamente el hash del código con expiración de 15 minutos; se conserva el rate limit existente. Solicitarlo crea una vinculación pendiente y la UI informa si el envío por WhatsApp tuvo éxito. `buildPairingMessage` pide responder con el código recibido. La vinculación definitiva sigue ocurriendo únicamente cuando el webhook recibe un código válido y `completar_vinculacion_whatsapp` finaliza correctamente, sin cambios en la RPC ni en la verificación de propiedad.
 
 ## Procesamiento de movimientos
 

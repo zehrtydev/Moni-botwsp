@@ -113,19 +113,19 @@ describe("WhatsApp webhook processing", () => {
     expect(adminRpc).not.toHaveBeenCalled();
   });
 
-  it("links the pending number only after a valid pairing code is completed", async () => {
+  it.each(["AB2 CD3", "AB2CD3", " ab2 cd3 "])("links the pending number only after completing valid code %j", async (code) => {
     adminRpc.mockResolvedValue({
       data: { usuario_id: "user-1", numero_whatsapp: "+573001234567" },
       error: null,
     });
 
     const { POST } = await import("./route");
-    const response = await POST(requestFor(lidPayload("MONI-AB2CD3")));
+    const response = await POST(requestFor(lidPayload(code)));
 
     expect(response.status).toBe(202);
     await expect(response.json()).resolves.toEqual({ success: true, paired: true });
     expect(adminRpc).toHaveBeenCalledWith("completar_vinculacion_whatsapp", {
-      p_codigo_hash: hashPairingCode("MONI-AB2CD3"),
+      p_codigo_hash: hashPairingCode("AB2 CD3"),
       p_instancia: "moni-test",
       p_lid: "12345@lid",
     });
@@ -133,12 +133,23 @@ describe("WhatsApp webhook processing", () => {
     expect(sendEvolutionText).toHaveBeenCalledWith("+573001234567", expect.stringContaining("Este chat ya está conectado"));
   });
 
+  it.each(["MONI-AB2CD3", "AB2-CD3", "AB0 CD3", "AB2  CD3", "AB2CD"])("does not call the pairing RPC for invalid code %j", async (code) => {
+    mockUnknownContact();
+    const { POST } = await import("./route");
+    const response = await POST(requestFor(lidPayload(code)));
+
+    await expect(response.json()).resolves.toEqual({ success: true, ignored: true, reason: "contact_lid_requires_explicit_pairing" });
+    expect(adminRpc).not.toHaveBeenCalled();
+    expect(adminFrom).not.toHaveBeenCalledWith("usuarios");
+    expect(sendEvolutionText).not.toHaveBeenCalled();
+  });
+
   it.each(["expired", "already used"])("does not link a number when the pairing code is %s", async () => {
     adminRpc.mockResolvedValue({ data: null, error: null });
     mockUnknownContact();
 
     const { POST } = await import("./route");
-    const response = await POST(requestFor(lidPayload("MONI-AB2CD3")));
+    const response = await POST(requestFor(lidPayload("AB2 CD3")));
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ success: true, ignored: true, reason: "contact_lid_requires_explicit_pairing" });
@@ -150,7 +161,7 @@ describe("WhatsApp webhook processing", () => {
     adminRpc.mockResolvedValue({ data: null, error: { code: "23505", message: "WHATSAPP_NUMBER_ALREADY_LINKED" } });
 
     const { POST } = await import("./route");
-    const response = await POST(requestFor(lidPayload("MONI-AB2CD3")));
+    const response = await POST(requestFor(lidPayload("AB2 CD3")));
 
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toEqual({ success: false, error: "El número ya está vinculado a otra cuenta" });

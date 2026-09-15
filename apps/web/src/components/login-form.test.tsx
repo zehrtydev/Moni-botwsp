@@ -2,7 +2,6 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LoginForm } from "./login-form";
-import { getSignupSuccessMessage } from "@/lib/auth-error";
 
 const { replace, refresh, signInWithPassword, signUp } = vi.hoisted(() => ({
   replace: vi.fn(),
@@ -97,7 +96,7 @@ describe("LoginForm", () => {
     await user.type(screen.getByLabelText("Contraseña"), "secreto1");
     await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(getSignupSuccessMessage(false));
+    expect(await screen.findByRole("status")).toHaveTextContent("Cuenta creada. Revisa tu correo para confirmar tu cuenta.");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
     expect(refresh).not.toHaveBeenCalled();

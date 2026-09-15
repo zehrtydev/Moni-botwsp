@@ -164,6 +164,8 @@ describe("dashboard", () => {
     render(await DashboardPage({ searchParams: Promise.resolve({ desde: "2026-09-10", hasta: "2026-09-12" }) }));
 
     expect(screen.getByText("Conecta tu WhatsApp")).toBeInTheDocument();
+    expect(screen.getByText("Vincula tu número de WhatsApp para empezar a registrar gastos.")).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/Evolution|Supabase/i);
     expect(from.mock.calls.map(([table]) => table)).toEqual(["usuarios"]);
     expect(dailyExpenseChart).not.toHaveBeenCalled();
     expect(categoryExpenseChart).not.toHaveBeenCalled();

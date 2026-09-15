@@ -56,7 +56,7 @@ describe("WhatsApp webhook contract", () => {
     const result = normalizeEvolutionPayload({
       event: "messages.upsert", instance: "moni-local",
       data: { sender: "573001234567@s.whatsapp.net", key: { id: "msg-lid-nested-sender", remoteJid: "51629868974162@lid", fromMe: false },
-        message: { conversation: "MONI-ABC123" }, messageTimestamp: 1_756_500_000 },
+        message: { conversation: "AB2 CD3" }, messageTimestamp: 1_756_500_000 },
     });
     expect(result.kind).toBe("lid");
   });
