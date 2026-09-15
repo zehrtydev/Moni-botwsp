@@ -6,7 +6,7 @@ Este estado describe evidencia del repositorio; no sustituye una verificación d
 
 ## Funciona según código y pruebas presentes
 
-- Aplicación Next.js con login, callback de autenticación y dashboard.
+- Aplicación Next.js con login, callback SSR de confirmación por `token_hash` y `verifyOtp` (con compatibilidad temporal para `?code=`), y dashboard.
 - Landing pública responsive en `/`, con CTA resuelto por sesión en servidor, mockups estáticos del flujo conversacional y del dashboard, y acciones públicas diferenciadas para iniciar sesión o abrir directamente el registro.
 - `/login` redirige en servidor a usuarios autenticados, abre el registro desde `?mode=register` y ofrece inicio de sesión o registro público mediante Supabase Auth; el cierre de sesión vuelve a `/`.
 - Vinculación de WhatsApp con formato E.164 y pairing temporal de seis caracteres seguros mostrado como `AB2 CD3` (también acepta `AB2CD3`, minúsculas y espacios exteriores); el número solo se asigna al usuario al consumir un código válido mediante una operación transaccional que también retira mappings LID obsoletos.
@@ -19,7 +19,7 @@ Este estado describe evidencia del repositorio; no sustituye una verificación d
 - Migraciones Supabase con RLS, restricciones de propiedad e índices de idempotencia.
 - Suite Vitest, pruebas de rutas y una prueba E2E smoke configuradas.
 
-El repositorio contiene 29 archivos de pruebas Vitest. La validación de esta actualización ejecutó 178/178 pruebas de la suite completa, ESLint y TypeScript sin errores directamente en este worktree. El formulario informa del envío pendiente de verificación y presenta el fallo de envío como error, sin anunciar una vinculación completada. El archivo pgTAP de pairing pasó 37/37 pruebas contra Supabase local en la validación anterior; no se volvió a ejecutar en esta actualización.
+El repositorio contiene 30 archivos de pruebas Vitest. La validación de esta actualización ejecutó 185/185 pruebas de la suite completa, ESLint y TypeScript sin errores directamente en este worktree. El formulario informa del envío pendiente de verificación y presenta el fallo de envío como error, sin anunciar una vinculación completada. El archivo pgTAP de pairing pasó 37/37 pruebas contra Supabase local en la validación anterior; no se volvió a ejecutar en esta actualización.
 
 ## Desarrollo o cobertura incompleta observable
 
@@ -31,7 +31,7 @@ El repositorio contiene 29 archivos de pruebas Vitest. La validación de esta ac
 ## Problemas o riesgos verificables
 
 - `supabase test db` mantiene un fallo preexistente en `001_foundation.sql`: la prueba espera diez categorías activas, mientras que el seed actual contiene quince. El nuevo `002_whatsapp_pairing.sql` pasa 37/37; la carpeta completa queda en 57/58 por esa contradicción entre el test fundacional y `supabase/seed.sql`.
-- La documentación ya fue normalizada para usar `https://moni.zehrty.dev` como dominio canónico actual de producción. Sigue pendiente verificar en el panel real de Supabase que **Site URL** y **Redirect URLs** coincidan con `https://moni.zehrty.dev`; esto no puede comprobarse únicamente desde el repositorio.
+- La documentación ya fue normalizada para usar `https://moni.zehrty.dev` como dominio canónico actual de producción. Sigue pendiente verificar en el panel real de Supabase que **Site URL** y **Redirect URLs** coincidan con `https://moni.zehrty.dev` y, después de desplegar el callback compatible, actualizar manualmente la plantilla **Confirm signup** para enviar `token_hash` y `type=email`; esto no puede hacerse únicamente desde el repositorio.
 - El PRD describe `n8n` como superficie de webhook, pero el código actual procesa directamente en `/api/webhooks/whatsapp`; no hay configuración de n8n en el árbol inspeccionado.
 - El PRD histórico declara fuera de alcance presupuestos e ingresos, aunque ambos están implementados en código y migraciones.
 - El PRD y su catálogo inicial no reflejan todas las categorías actuales de `supabase/seed.sql`.
