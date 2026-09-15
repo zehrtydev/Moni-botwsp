@@ -14,7 +14,9 @@ Para desarrollo local se puede conservar `http://localhost:3000/auth/callback` c
 En **Authentication → Email Templates → Confirm signup**:
 
 - Asunto: `Confirma tu correo y empieza con Moni 💜`
-- Usa `{{ .ConfirmationURL }}` como enlace del botón.
+- Después de desplegar el soporte SSR descrito aquí, cambia manualmente el enlace del botón a `{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email`.
+
+El callback verifica el `token_hash` con `supabase.auth.verifyOtp` mediante el cliente SSR y persiste la sesión en sus cookies. Durante la transición mantiene compatibilidad temporal con enlaces anteriores que lleguen con `?code=` y usa `exchangeCodeForSession` para esos casos. La plantilla remota no queda modificada por este cambio de código y debe actualizarse manualmente después del despliegue.
 
 Plantilla sugerida:
 
@@ -24,7 +26,7 @@ Plantilla sugerida:
     <p style="color:#7564e9;font-size:22px;font-weight:700;margin:0 0 28px">moni</p>
     <h1 style="font-size:30px;margin:0 0 16px">¡Hola! 👋</h1>
     <p style="font-size:16px;line-height:1.6">Confirma tu correo para activar tu espacio financiero en Moni y empezar a organizar tus ingresos y gastos.</p>
-    <p style="text-align:center;margin:32px 0"><a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#7564e9;color:#fff;text-decoration:none;border-radius:14px;padding:15px 26px;font-weight:700">Confirmar mi correo</a></p>
+    <p style="text-align:center;margin:32px 0"><a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email" style="display:inline-block;background:#7564e9;color:#fff;text-decoration:none;border-radius:14px;padding:15px 26px;font-weight:700">Confirmar mi correo</a></p>
     <p style="font-size:13px;line-height:1.5;color:#77738b">Si no creaste esta cuenta, puedes ignorar este mensaje.</p>
   </div>
 </div>
