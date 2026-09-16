@@ -13,6 +13,10 @@ import { safeErrorCode } from "@/lib/safe-log";
 
 export const runtime = "nodejs";
 
+const pairingSuccessMessage = "¡Listo! ✅ Este chat ya está conectado con tu cuenta de Moni 💜\n\nAhora puedes enviarme tu primer gasto, por ejemplo: *Gasté 20 lucas en almuerzo*.";
+const pairingConflictMessage = "Este número ya está vinculado a otra cuenta de Moni. Desvincúlalo de esa cuenta antes de usarlo aquí.";
+const pairingInvalidMessage = "Ese código no es válido o ya expiró. Solicita uno nuevo desde el dashboard de Moni.";
+
 async function reply(number: string, text: string) {
   try { await sendEvolutionText(number, text); }
   catch (error) { console.error("whatsapp_reply_failed", safeErrorCode(error)); }
@@ -273,6 +277,27 @@ export async function POST(request: Request) {
 
   const evolution = normalizeEvolutionPayload(payload);
   if (evolution.kind === "ignored") return NextResponse.json({ success: true, ignored: true });
+  if (evolution.kind === "message" && isPairingCode(evolution.message.contenido)) {
+    const admin = createSupabaseAdminClient();
+    const { data: completedPairing, error: pairingError } = await admin.rpc("completar_vinculacion_whatsapp_por_numero", {
+      p_codigo_hash: hashPairingCode(evolution.message.contenido),
+      p_numero_whatsapp: evolution.message.numero_whatsapp,
+    });
+    if (pairingError?.code === "23505") {
+      await reply(evolution.message.numero_whatsapp, pairingConflictMessage);
+      return NextResponse.json({ success: true, pairingConflict: true }, { status: 202 });
+    }
+    if (pairingError) return NextResponse.json({ success: false, error: "No se pudo validar el código" }, { status: 500 });
+    const pairedNumber = completedPairing && typeof completedPairing === "object" && "numero_whatsapp" in completedPairing
+      ? completedPairing.numero_whatsapp
+      : null;
+    if (typeof pairedNumber === "string") {
+      await reply(pairedNumber, pairingSuccessMessage);
+      return NextResponse.json({ success: true, paired: true }, { status: 202 });
+    }
+    await reply(evolution.message.numero_whatsapp, pairingInvalidMessage);
+    return NextResponse.json({ success: true, pairingInvalid: true }, { status: 202 });
+  }
   if (evolution.kind === "lid") {
     const admin = createSupabaseAdminClient();
     const instance = request.headers.get("x-whatsapp-instance") ?? evolution.instance;
@@ -297,7 +322,7 @@ export async function POST(request: Request) {
           if (pendingPairingError || typeof replyTarget !== "string" || !replyTarget) {
             console.error("whatsapp_pairing_conflict_reply_target_missing", safeErrorCode(pendingPairingError));
           } else {
-            await reply(replyTarget, "Este número ya está vinculado a otra cuenta de Moni. Desvincúlalo de esa cuenta antes de usarlo aquí.");
+            await reply(replyTarget, pairingConflictMessage);
           }
         } catch (error) {
           console.error("whatsapp_pairing_conflict_reply_target_missing", safeErrorCode(error));
@@ -309,7 +334,7 @@ export async function POST(request: Request) {
         ? completedPairing.numero_whatsapp
         : null;
       if (typeof pairedNumber === "string") {
-        await reply(pairedNumber, "¡Listo! ✅ Este chat ya está conectado con tu cuenta de Moni 💜\n\nAhora puedes enviarme tu primer gasto, por ejemplo: *Gasté 20 lucas en almuerzo*.");
+        await reply(pairedNumber, pairingSuccessMessage);
         return NextResponse.json({ success: true, paired: true }, { status: 202 });
       }
     }

@@ -47,6 +47,17 @@ function lidPayload(content: string) {
   };
 }
 
+function normalPayload(content: string, sender?: string) {
+  return {
+    ...payload,
+    data: {
+      ...payload.data,
+      message: { conversation: content },
+      ...(sender ? { sender } : {}),
+    },
+  };
+}
+
 function mockUnknownContact() {
   const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
   const query = { select: vi.fn(() => query), eq: vi.fn(() => query), maybeSingle };
@@ -145,6 +156,82 @@ describe("WhatsApp webhook processing", () => {
     });
     expect(adminFrom).not.toHaveBeenCalled();
     expect(sendEvolutionText).toHaveBeenCalledWith("+573001234567", expect.stringContaining("Este chat ya está conectado"));
+  });
+
+  it.each(["AB2 CD3", "AB2CD3", " ab2 cd3 "])("links a normal JID only after completing valid code %j", async (code) => {
+    adminRpc.mockResolvedValue({
+      data: { usuario_id: "user-1", numero_whatsapp: "+573001234567" },
+      error: null,
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(requestFor(normalPayload(code)));
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({ success: true, paired: true });
+    expect(adminRpc).toHaveBeenCalledTimes(1);
+    expect(adminRpc).toHaveBeenCalledWith("completar_vinculacion_whatsapp_por_numero", {
+      p_codigo_hash: hashPairingCode("AB2 CD3"),
+      p_numero_whatsapp: "+573001234567",
+    });
+    expect(adminRpc).not.toHaveBeenCalledWith("completar_vinculacion_whatsapp", expect.anything());
+    expect(adminFrom).not.toHaveBeenCalled();
+    expect(sendEvolutionText).toHaveBeenCalledWith(
+      "+573001234567",
+      "¡Listo! ✅ Este chat ya está conectado con tu cuenta de Moni 💜\n\nAhora puedes enviarme tu primer gasto, por ejemplo: *Gasté 20 lucas en almuerzo*.",
+    );
+  });
+
+  it("rejects an invalid or expired pairing code from a normal JID without normal processing", async () => {
+    adminRpc.mockResolvedValue({ data: null, error: null });
+
+    const { POST } = await import("./route");
+    const response = await POST(requestFor(normalPayload("AB2 CD3")));
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({ success: true, pairingInvalid: true });
+    expect(adminRpc).toHaveBeenCalledWith("completar_vinculacion_whatsapp_por_numero", expect.anything());
+    expect(adminRpc).not.toHaveBeenCalledWith("completar_vinculacion_whatsapp", expect.anything());
+    expect(adminFrom).not.toHaveBeenCalled();
+    expect(sendEvolutionText).toHaveBeenCalledWith(
+      "+573001234567",
+      "Ese código no es válido o ya expiró. Solicita uno nuevo desde el dashboard de Moni.",
+    );
+  });
+
+  it("acknowledges a normal JID pairing conflict and ignores an arbitrary sender", async () => {
+    adminRpc.mockResolvedValue({ data: null, error: { code: "23505", message: "WHATSAPP_NUMBER_ALREADY_LINKED" } });
+
+    const { POST } = await import("./route");
+    const response = await POST(requestFor(normalPayload("AB2 CD3", "+579998887766")));
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({ success: true, pairingConflict: true });
+    expect(adminRpc).toHaveBeenCalledWith("completar_vinculacion_whatsapp_por_numero", {
+      p_codigo_hash: hashPairingCode("AB2 CD3"),
+      p_numero_whatsapp: "+573001234567",
+    });
+    expect(adminRpc).not.toHaveBeenCalledWith("completar_vinculacion_whatsapp", expect.anything());
+    expect(adminFrom).not.toHaveBeenCalled();
+    expect(sendEvolutionText).toHaveBeenCalledWith(
+      "+573001234567",
+      "Este número ya está vinculado a otra cuenta de Moni. Desvincúlalo de esa cuenta antes de usarlo aquí.",
+    );
+    expect(sendEvolutionText).not.toHaveBeenCalledWith("+579998887766", expect.any(String));
+  });
+
+  it("returns 500 without replying for technical errors in normal JID pairing", async () => {
+    adminRpc.mockResolvedValue({ data: null, error: { code: "P0001", message: "database unavailable" } });
+
+    const { POST } = await import("./route");
+    const response = await POST(requestFor(normalPayload("AB2 CD3")));
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ success: false, error: "No se pudo validar el código" });
+    expect(adminRpc).toHaveBeenCalledWith("completar_vinculacion_whatsapp_por_numero", expect.anything());
+    expect(adminRpc).not.toHaveBeenCalledWith("completar_vinculacion_whatsapp", expect.anything());
+    expect(adminFrom).not.toHaveBeenCalled();
+    expect(sendEvolutionText).not.toHaveBeenCalled();
   });
 
   it.each(["MONI-AB2CD3", "AB2-CD3", "AB0 CD3", "AB2  CD3", "AB2CD"])("does not call the pairing RPC for invalid code %j", async (code) => {
