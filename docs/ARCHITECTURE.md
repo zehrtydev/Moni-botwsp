@@ -9,8 +9,8 @@ Esta descripción se basa en el código, migraciones y configuración presentes 
 Superficies principales:
 
 - `/`: landing pública renderizada en servidor; consulta la sesión únicamente para dirigir el CTA a `/login` o `/dashboard` sin ocultar la landing a usuarios autenticados.
-- `/login`: inicio de sesión por correo y contraseña; no expone registro público y redirige en servidor a `/dashboard` cuando ya existe una sesión.
-- `/auth/callback`: Route Handler de Next.js para intercambiar el código de autenticación por una sesión y redirigir al dashboard; no es una página UI.
+- `/login`: ofrece inicio de sesión y registro público, puede abrir directamente el registro con `?mode=register` y redirige en servidor a `/dashboard` cuando ya existe una sesión.
+- `/auth/callback`: Route Handler de Next.js para verificar el `token_hash` del correo con Supabase SSR, persistir la sesión y redirigir al dashboard; no es una página UI.
 - `/dashboard`: resumen principal, vinculación de WhatsApp y movimientos recientes.
 - `/historial`: gastos e ingresos con filtros y acciones de historial.
 - `/estadisticas`: gráficos, categorías y balance neto.

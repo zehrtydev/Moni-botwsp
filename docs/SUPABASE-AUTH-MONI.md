@@ -14,9 +14,9 @@ Para desarrollo local se puede conservar `http://localhost:3000/auth/callback` c
 En **Authentication → Email Templates → Confirm signup**:
 
 - Asunto: `Confirma tu correo y empieza con Moni 💜`
-- Después de desplegar el soporte SSR descrito aquí, cambia manualmente el enlace del botón a `{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email`.
+- El enlace del botón configurado en Supabase usa `{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email`.
 
-El callback verifica el `token_hash` con `supabase.auth.verifyOtp` mediante el cliente SSR y persiste la sesión en sus cookies. Durante la transición mantiene compatibilidad temporal con enlaces anteriores que lleguen con `?code=` y usa `exchangeCodeForSession` para esos casos. La plantilla remota no queda modificada por este cambio de código y debe actualizarse manualmente después del despliegue.
+El callback verifica exclusivamente el `token_hash` con `supabase.auth.verifyOtp` mediante el cliente SSR y persiste la sesión en sus cookies.
 
 Plantilla sugerida:
 
