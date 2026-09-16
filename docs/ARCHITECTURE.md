@@ -44,7 +44,7 @@ Evolution recibe la instancia y envía eventos `messages.upsert` al webhook. La 
 
 El pairing genera seis caracteres criptográficamente aleatorios del alfabeto `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` y los muestra en dos grupos de tres: `AB2 CD3`. `normalizePairingCode` elimina espacios exteriores, convierte a mayúsculas y retira únicamente el espacio entre los dos grupos. Antes de calcular SHA-256 se valida que queden exactamente seis caracteres del alfabeto seguro: `AB2 CD3`, `AB2CD3` y ` ab2 cd3 ` producen el mismo hash. Otros separadores, espacios internos y el prefijo antiguo se rechazan.
 
-Se guarda únicamente el hash del código con expiración de 15 minutos; se conserva el rate limit existente. Solicitarlo crea una vinculación pendiente y la UI informa si el envío por WhatsApp tuvo éxito. `buildPairingMessage` pide responder con el código recibido. La vinculación definitiva sigue ocurriendo únicamente cuando el webhook recibe un código válido y `completar_vinculacion_whatsapp` finaliza correctamente, sin cambios en la RPC ni en la verificación de propiedad.
+Se guarda únicamente el hash del código con expiración de 15 minutos; se conserva el rate limit existente. Solicitarlo crea una vinculación pendiente y la UI informa si el envío por WhatsApp tuvo éxito. `buildPairingMessage` pide responder con el código recibido. La vinculación definitiva ocurre únicamente cuando el webhook recibe un código válido: los contactos LID usan `completar_vinculacion_whatsapp` y los contactos entregados directamente como JID/número normal usan `completar_vinculacion_whatsapp_por_numero`, que exige que el hash y el número remitente normalizado coincidan con la misma vinculación pendiente.
 
 ## Procesamiento de movimientos
 
