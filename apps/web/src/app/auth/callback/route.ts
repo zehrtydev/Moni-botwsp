@@ -13,7 +13,6 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const tokenHash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type");
-  const code = url.searchParams.get("code");
 
   if (tokenHash && isAcceptedEmailOtpType(type)) {
     const supabase = await createSupabaseServerClient();
@@ -24,22 +23,7 @@ export async function GET(request: Request) {
     );
   }
 
-  if (!code) {
-    return NextResponse.redirect(
-      new URL("/login?error=confirmacion_invalida", PUBLIC_SITE_URL),
-    );
-  }
-
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-  if (error) {
-    return NextResponse.redirect(
-      new URL("/login?error=confirmacion_fallida", PUBLIC_SITE_URL),
-    );
-  }
-
   return NextResponse.redirect(
-    new URL("/dashboard", PUBLIC_SITE_URL),
+    new URL("/login?error=confirmacion_invalida", PUBLIC_SITE_URL),
   );
 }

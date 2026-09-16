@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 
-const { createSupabaseServerClient, exchangeCodeForSession, verifyOtp } = vi.hoisted(() => ({
+const { createSupabaseServerClient, verifyOtp } = vi.hoisted(() => ({
   createSupabaseServerClient: vi.fn(),
-  exchangeCodeForSession: vi.fn(),
   verifyOtp: vi.fn(),
 }));
 
@@ -17,9 +16,8 @@ describe("auth callback", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     createSupabaseServerClient.mockResolvedValue({
-      auth: { exchangeCodeForSession, verifyOtp },
+      auth: { verifyOtp },
     });
-    exchangeCodeForSession.mockResolvedValue({ error: null });
     verifyOtp.mockResolvedValue({ error: null });
   });
 
@@ -28,7 +26,6 @@ describe("auth callback", () => {
 
     expect(createSupabaseServerClient).toHaveBeenCalledOnce();
     expect(verifyOtp).toHaveBeenCalledWith({ token_hash: "token-hash", type: "email" });
-    expect(exchangeCodeForSession).not.toHaveBeenCalled();
     expect(response.headers.get("location")).toBe("https://moni.zehrty.dev/dashboard");
   });
 
@@ -38,26 +35,15 @@ describe("auth callback", () => {
     const response = await GET(callbackRequest("?token_hash=token-hash&type=email"));
 
     expect(verifyOtp).toHaveBeenCalledWith({ token_hash: "token-hash", type: "email" });
-    expect(exchangeCodeForSession).not.toHaveBeenCalled();
     expect(response.headers.get("location")).toBe("https://moni.zehrty.dev/login?error=confirmacion_fallida");
   });
 
-  it("exchanges a legacy code and redirects to the dashboard", async () => {
+  it("rejects a legacy code as an invalid confirmation", async () => {
     const response = await GET(callbackRequest("?code=legacy-code"));
 
-    expect(exchangeCodeForSession).toHaveBeenCalledWith("legacy-code");
+    expect(createSupabaseServerClient).not.toHaveBeenCalled();
     expect(verifyOtp).not.toHaveBeenCalled();
-    expect(response.headers.get("location")).toBe("https://moni.zehrty.dev/dashboard");
-  });
-
-  it("redirects to confirmation failed when legacy code exchange fails", async () => {
-    exchangeCodeForSession.mockResolvedValue({ error: { message: "invalid code" } });
-
-    const response = await GET(callbackRequest("?code=legacy-code"));
-
-    expect(exchangeCodeForSession).toHaveBeenCalledWith("legacy-code");
-    expect(verifyOtp).not.toHaveBeenCalled();
-    expect(response.headers.get("location")).toBe("https://moni.zehrty.dev/login?error=confirmacion_fallida");
+    expect(response.headers.get("location")).toBe("https://moni.zehrty.dev/login?error=confirmacion_invalida");
   });
 
   it("rejects a callback without valid confirmation parameters", async () => {
@@ -65,7 +51,6 @@ describe("auth callback", () => {
 
     expect(createSupabaseServerClient).not.toHaveBeenCalled();
     expect(verifyOtp).not.toHaveBeenCalled();
-    expect(exchangeCodeForSession).not.toHaveBeenCalled();
     expect(response.headers.get("location")).toBe("https://moni.zehrty.dev/login?error=confirmacion_invalida");
   });
 
@@ -74,16 +59,14 @@ describe("auth callback", () => {
 
     expect(createSupabaseServerClient).not.toHaveBeenCalled();
     expect(verifyOtp).not.toHaveBeenCalled();
-    expect(exchangeCodeForSession).not.toHaveBeenCalled();
     expect(response.headers.get("location")).toBe("https://moni.zehrty.dev/login?error=confirmacion_invalida");
   });
 
-  it("prioritizes a valid token hash over a simultaneous legacy code", async () => {
+  it("ignores a simultaneous legacy code when the token hash is valid", async () => {
     const response = await GET(callbackRequest("?token_hash=token-hash&type=email&code=legacy-code"));
 
     expect(createSupabaseServerClient).toHaveBeenCalledOnce();
     expect(verifyOtp).toHaveBeenCalledWith({ token_hash: "token-hash", type: "email" });
-    expect(exchangeCodeForSession).not.toHaveBeenCalled();
     expect(response.headers.get("location")).toBe("https://moni.zehrty.dev/dashboard");
   });
 });
