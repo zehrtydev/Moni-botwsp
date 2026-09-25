@@ -3,6 +3,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { extractExpenseDraft } from "@/lib/expense-parser";
 import { extractIncomeDraft } from "@/lib/income-parser";
 import { interpretExpenseWithAI } from "@/lib/ai-expense-interpreter";
+import { enrichExpenseDraftWithAI } from "@/lib/ai-expense-enricher";
 import { isBudgetCommand, parseBudgetCommand } from "@/lib/budget-parser";
 import { isCorrectionCommand, isGreeting, isThanks, parseCorrectionCommand, parseExpenseQuery } from "@/lib/whatsapp-commands";
 import { sendEvolutionButtons, sendEvolutionText } from "@/lib/evolution";
@@ -232,9 +233,25 @@ async function processExpenseMessage(supabase: ReturnType<typeof createSupabaseA
   const receivedAt = new Date(message.timestamp);
   const deterministicDraft = extractExpenseDraft(message.contenido, receivedAt);
   let draft = deterministicDraft;
-  if (!draft || draft.categoria === "Otros") {
-    const aiResult = await interpretExpenseWithAI(message.contenido, receivedAt);
-    if (aiResult && aiResult.confianza >= 0.78) draft = aiResult.draft;
+
+  if (draft?.categoria === "Otros") {
+    const aiResult = await enrichExpenseDraftWithAI(
+      message.contenido,
+      draft,
+    );
+
+    if (aiResult && aiResult.confianza >= 0.78) {
+      draft = aiResult.draft;
+    }
+  } else if (!draft) {
+    const aiResult = await interpretExpenseWithAI(
+      message.contenido,
+      receivedAt,
+    );
+
+    if (aiResult && aiResult.confianza >= 0.78) {
+      draft = aiResult.draft;
+    }
   }
   if (!draft) {
     if (active) await reply(message.numero_whatsapp, "Me falta el monto 😊 Envíamelo así: *20000* o *20 mil*.");

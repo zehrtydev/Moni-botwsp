@@ -152,7 +152,7 @@ async function interpretWithOllama(
         num_predict: 256,
       },
     }),
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!response.ok) {
@@ -177,7 +177,7 @@ async function interpretWithOpenAI(
   const client = new OpenAI({
     apiKey,
     baseURL,
-    timeout: 8000,
+    timeout: 15_000,
     maxRetries: 0,
   });
 
