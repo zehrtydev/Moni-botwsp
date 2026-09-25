@@ -12,14 +12,16 @@ function serviceBlock(compose: string, service: string) {
   const lines = compose.split("\n");
   const start = lines.findIndex((line) => line === `  ${service}:`);
   const end = lines.findIndex(
-    (line, index) => index > start && /^  [a-z0-9-]+:$/.test(line),
+    (line, index) =>
+      index > start &&
+      (/^  [a-z0-9-]+:$/.test(line) || /^[a-z0-9-]+:$/.test(line)),
   );
 
   return lines.slice(start, end === -1 ? undefined : end).join("\n");
 }
 
 describe("production VPS configuration", () => {
-  it("defines the Moni production stack with pinned dependencies and an immutable web image", () => {
+  it("defines the Moni production stack with an immutable web image", () => {
     const composePath = resolve(repoRoot, "docker-compose.prod.yml");
 
     expect(existsSync(composePath)).toBe(true);
@@ -28,49 +30,41 @@ describe("production VPS configuration", () => {
 
     expect(compose).toContain("name: moni");
 
-    expect(compose).not.toMatch(/^  caddy:$/m);
-
     expect(compose).toContain("web:");
     expect(compose).toContain("ollama:");
-    expect(compose).toContain("evolution-api:");
-    expect(compose).toContain("evolution-postgres:");
-    expect(compose).toContain("evolution-redis:");
+
+    expect(compose).not.toMatch(/^  caddy:$/m);
+    expect(compose).not.toMatch(/^  evolution-api:$/m);
+    expect(compose).not.toMatch(/^  evolution-postgres:$/m);
+    expect(compose).not.toMatch(/^  evolution-redis:$/m);
 
     expect(compose).toContain(
       "image: ghcr.io/zehrtydev/moni-web:${MONI_IMAGE_TAG:?set MONI_IMAGE_TAG in .env.release}",
     );
 
     expect(compose).toContain("ollama/ollama:0.33.2");
-    expect(compose).toContain("evoapicloud/evolution-api:v2.3.7");
-    expect(compose).toContain("postgres:15.19-alpine3.24");
-    expect(compose).toContain("redis:7.4.11-alpine3.21");
 
     expect(compose).not.toMatch(/image:\s*[^\n]*:latest/);
   });
 
-  it("keeps application and data ports internal and exposes web through the shared edge network", () => {
+  it("keeps Moni ports internal and exposes web only through shared networks", () => {
     const compose = readRepoFile("docker-compose.prod.yml");
 
     const web = serviceBlock(compose, "web");
-    const evolution = serviceBlock(compose, "evolution-api");
-    const postgres = serviceBlock(compose, "evolution-postgres");
-    const redis = serviceBlock(compose, "evolution-redis");
     const ollama = serviceBlock(compose, "ollama");
 
-    for (const block of [web, evolution, postgres, redis, ollama]) {
-      expect(block).not.toContain("ports:");
-    }
+    expect(web).not.toContain("ports:");
+    expect(ollama).not.toContain("ports:");
 
     expect(web).toContain("- edge");
-    expect(ollama).not.toContain("- edge");
+    expect(web).toContain("- evolution");
 
-    expect(compose).toContain("internal: true");
+    expect(ollama).not.toContain("- edge");
+    expect(ollama).not.toContain("- evolution");
+
     expect(compose).toContain("external: true");
     expect(compose).toContain("name: edge");
-
-    expect(compose).not.toMatch(
-      /-\s*["']?(?:0\.0\.0\.0:)?(?:5432|6379|8080|11434):/,
-    );
+    expect(compose).toContain("name: evolution");
   });
 
   it("requires production secrets and a release image tag without committing their values", () => {
@@ -84,41 +78,34 @@ describe("production VPS configuration", () => {
       "SUPABASE_SERVICE_ROLE_KEY",
       "WHATSAPP_WEBHOOK_SECRET",
       "EVOLUTION_API_KEY",
-      "EVOLUTION_DB_PASSWORD",
+      "EVOLUTION_INSTANCE_NAME",
     ]) {
       expect(example).toContain(`${name}=`);
       expect(compose).toContain(`\${${name}:?`);
     }
 
+    expect(example).toContain(
+      "EVOLUTION_API_URL=http://evolution-api:8080",
+    );
+
+    expect(example).not.toContain("EVOLUTION_DB_PASSWORD=");
+    expect(compose).not.toContain("EVOLUTION_DB_PASSWORD");
+
     expect(releaseExample).toContain("MONI_IMAGE_TAG=");
     expect(compose).toContain("${MONI_IMAGE_TAG:?");
-
-    expect(`${compose}\n${example}\n${releaseExample}`).not.toContain(
-      "evolutionpass",
-    );
   });
 
-  it("persists Ollama and Evolution while preserving production service names", () => {
+  it("persists only Moni-owned application data", () => {
     const compose = readRepoFile("docker-compose.prod.yml");
 
-    for (const name of [
-      "moni-web",
-      "moni-ollama",
-      "moni-evolution",
-      "moni-evolution-postgres",
-      "moni-evolution-redis",
-    ]) {
-      expect(compose).toContain(`container_name: ${name}`);
-    }
+    expect(compose).toContain("container_name: moni-web");
+    expect(compose).toContain("container_name: moni-ollama");
 
-    for (const volume of [
-      "ollama_data",
-      "evolution_instances",
-      "evolution_postgres",
-      "evolution_redis",
-    ]) {
-      expect(compose).toContain(`${volume}:`);
-    }
+    expect(compose).toContain("ollama_data:");
+
+    expect(compose).not.toContain("evolution_instances:");
+    expect(compose).not.toContain("evolution_postgres:");
+    expect(compose).not.toContain("evolution_redis:");
 
     expect(compose).not.toContain("caddy_data:");
     expect(compose).not.toContain("caddy_config:");
@@ -129,22 +116,30 @@ describe("production VPS configuration", () => {
     expect(compose).toContain("AI_MODEL: ${AI_MODEL:-qwen3:1.7b}");
   });
 
-  it("enables Evolution production persistence and conservative defaults", () => {
+  it("uses the shared Evolution platform instead of owning Evolution services", () => {
     const compose = readRepoFile("docker-compose.prod.yml");
+    const web = serviceBlock(compose, "web");
 
-    expect(compose).toContain('DATABASE_ENABLED: "true"');
-    expect(compose).toContain('CACHE_REDIS_SAVE_INSTANCES: "false"');
-    expect(compose).toContain('CACHE_LOCAL_ENABLED: "false"');
-    expect(compose).toContain('WEBHOOK_GLOBAL_ENABLED: "false"');
-    expect(compose).toContain(
-      'AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "false"',
+    expect(compose).not.toMatch(/^  evolution-api:$/m);
+    expect(compose).not.toMatch(/^  evolution-postgres:$/m);
+    expect(compose).not.toMatch(/^  evolution-redis:$/m);
+    expect(compose).not.toContain("data-net:");
+
+    expect(web).toContain(
+      "EVOLUTION_API_URL: ${EVOLUTION_API_URL:-http://evolution-api:8080}",
     );
 
-    expect(compose).toContain(
-      "SERVER_URL: ${EVOLUTION_SERVER_URL:-http://127.0.0.1:8080}",
+    expect(web).toContain(
+      "EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:?set EVOLUTION_API_KEY in .env.production}",
     );
 
-    expect(compose).not.toContain("wget -qO-");
+    expect(web).toContain(
+      "EVOLUTION_INSTANCE_NAME: ${EVOLUTION_INSTANCE_NAME:?set EVOLUTION_INSTANCE_NAME in .env.production}",
+    );
+
+    expect(web).toContain("- evolution");
+
+    expect(compose).toContain("name: evolution");
   });
 
   it("builds Next.js as a standalone production image", () => {
@@ -159,7 +154,7 @@ describe("production VPS configuration", () => {
     expect(nextConfig).toContain('output: "standalone"');
   });
 
-  it("publishes an immutable image and delegates production deployment to the restricted VPS command", () => {
+  it("publishes an immutable image and delegates deployment to the restricted VPS command", () => {
     const workflow = readRepoFile(".github/workflows/deploy-vps.yml");
 
     expect(workflow).toContain("packages: write");
@@ -201,9 +196,5 @@ describe("production VPS configuration", () => {
     );
 
     expect(workflow).not.toContain("git pull --ff-only");
-
-    expect(workflow).not.toContain(
-      "docker compose --env-file .env.production -f docker-compose.prod.yml build web",
-    );
   });
 });

@@ -12,6 +12,7 @@ services:
     container_name: moni-web
     restart: unless-stopped
     init: true
+
     environment:
       NODE_ENV: production
       HOSTNAME: 0.0.0.0
@@ -48,6 +49,7 @@ services:
     networks:
       - moni
       - edge
+      - evolution
 
     logging: *default-logging
 
@@ -76,127 +78,17 @@ services:
     logging: *default-logging
 
 
-  evolution-api:
-    image: evoapicloud/evolution-api:v2.3.7
-    container_name: moni-evolution
-    restart: unless-stopped
-    init: true
-
-    depends_on:
-      evolution-postgres:
-        condition: service_healthy
-      evolution-redis:
-        condition: service_healthy
-
-    environment:
-      TZ: America/Bogota
-
-      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:?set EVOLUTION_API_KEY in .env.production}
-      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "false"
-
-      SERVER_URL: ${EVOLUTION_SERVER_URL:-http://127.0.0.1:8080}
-      DEL_INSTANCE: "false"
-
-      DATABASE_ENABLED: "true"
-      DATABASE_PROVIDER: postgresql
-      DATABASE_CONNECTION_URI: postgresql://evolution:${EVOLUTION_DB_PASSWORD:?set EVOLUTION_DB_PASSWORD in .env.production}@evolution-postgres:5432/evolution?schema=evolution_api
-      DATABASE_CONNECTION_CLIENT_NAME: monibotwsp
-
-      DATABASE_SAVE_DATA_INSTANCE: "true"
-      DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
-
-      CACHE_REDIS_ENABLED: "true"
-      CACHE_REDIS_URI: redis://evolution-redis:6379/6
-      CACHE_REDIS_PREFIX_KEY: monibotwsp
-      CACHE_REDIS_SAVE_INSTANCES: "false"
-
-      CACHE_LOCAL_ENABLED: "false"
-      WEBHOOK_GLOBAL_ENABLED: "false"
-
-    volumes:
-      - evolution_instances:/evolution/instances
-
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "node -e \"fetch('http://127.0.0.1:8080').then((r)=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-
-    networks:
-      - moni
-      - data-net
-
-    logging: *default-logging
-
-
-  evolution-postgres:
-    image: postgres:15.19-alpine3.24
-    container_name: moni-evolution-postgres
-    restart: unless-stopped
-
-    environment:
-      POSTGRES_DB: evolution
-      POSTGRES_USER: evolution
-      POSTGRES_PASSWORD: ${EVOLUTION_DB_PASSWORD:?set EVOLUTION_DB_PASSWORD in .env.production}
-
-    volumes:
-      - evolution_postgres:/var/lib/postgresql/data
-
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U evolution -d evolution"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-    networks:
-      - data-net
-
-    logging: *default-logging
-
-
-  evolution-redis:
-    image: redis:7.4.11-alpine3.21
-    container_name: moni-evolution-redis
-    restart: unless-stopped
-
-    command:
-      - redis-server
-      - --appendonly
-      - "yes"
-
-    volumes:
-      - evolution_redis:/data
-
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-    networks:
-      - data-net
-
-    logging: *default-logging
-
-
 volumes:
   ollama_data:
-  evolution_instances:
-  evolution_postgres:
-  evolution_redis:
 
 
 networks:
   moni:
 
-  data-net:
-    internal: true
-
   edge:
     external: true
     name: edge
+
+  evolution:
+    external: true
+    name: evolution
