@@ -29,8 +29,7 @@ const categories = [
 
 export const aiExpenseEnrichmentSchema = z.object({
   categoria: z.enum(categories),
-  descripcion: z.string().min(1).max(500),
-  confianza: z.number().min(0).max(1),
+  descripcion: z.string().min(1).max(100),
 });
 
 const responseSchema = {
@@ -43,13 +42,8 @@ const responseSchema = {
     descripcion: {
       type: "string",
     },
-    confianza: {
-      type: "number",
-      minimum: 0,
-      maximum: 1,
-    },
   },
-  required: ["categoria", "descripcion", "confianza"],
+  required: ["categoria", "descripcion"],
   additionalProperties: false,
 } as const;
 
@@ -156,7 +150,7 @@ export async function enrichExpenseDraftWithAI(
     `Clasifica un gasto personal colombiano. ` +
     `El sistema ya determinó correctamente que es un gasto, su monto y su fecha. ` +
     `No debes volver a interpretar ni modificar esos datos. ` +
-    `Solo determina categoria, descripcion y confianza. ` +
+    `Solo determina categoria y descripcion. ` +
     `Categorías válidas: ${categories.join(", ")}. ` +
     `Comprende expresiones y modismos colombianos. ` +
     `Por ejemplo: corrientazo es Alimentación, pasaje es Transporte y tinto es Alimentación. ` +
@@ -189,7 +183,6 @@ export async function enrichExpenseDraftWithAI(
 
     return {
       draft: toEnrichedExpenseDraft(draft, parsed.data),
-      confianza: parsed.data.confianza,
     };
   } catch (error) {
     console.warn(
