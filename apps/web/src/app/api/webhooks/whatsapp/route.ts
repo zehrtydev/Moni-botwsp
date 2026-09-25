@@ -240,7 +240,7 @@ async function processExpenseMessage(supabase: ReturnType<typeof createSupabaseA
       draft,
     );
 
-    if (aiResult && aiResult.confianza >= 0.78) {
+    if (aiResult) {
       draft = aiResult.draft;
     }
   } else if (!draft) {

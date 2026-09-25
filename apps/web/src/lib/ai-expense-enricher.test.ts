@@ -5,17 +5,15 @@ import {
 } from "./ai-expense-enricher";
 
 describe("AI expense enricher contract", () => {
-  it("accepts a valid enrichment response", () => {
+  it("accepts category and description", () => {
     expect(
       aiExpenseEnrichmentSchema.parse({
         categoria: "Alimentación",
         descripcion: "Corrientazo",
-        confianza: 0.9,
       }),
     ).toEqual({
       categoria: "Alimentación",
       descripcion: "Corrientazo",
-      confianza: 0.9,
     });
   });
 
@@ -24,13 +22,12 @@ describe("AI expense enricher contract", () => {
       monto: 12000,
       fecha_gasto: "2026-09-25",
       categoria: "Otros",
-      descripcion: "Corrientazo",
+      descripcion: "Me gasté un corrientazo",
     };
 
     const enriched = toEnrichedExpenseDraft(originalDraft, {
       categoria: "Alimentación",
       descripcion: "Corrientazo",
-      confianza: 0.9,
     });
 
     expect(enriched).toEqual({
@@ -41,20 +38,22 @@ describe("AI expense enricher contract", () => {
     });
   });
 
-  it("cannot inject amount or date through the enrichment contract", () => {
-    const result = aiExpenseEnrichmentSchema.safeParse({
+  it("strips fields that AI is not allowed to control", () => {
+    const result = aiExpenseEnrichmentSchema.parse({
       categoria: "Alimentación",
       descripcion: "Corrientazo",
-      confianza: 0.9,
+      confianza: 5,
       monto: 999999,
       fecha_gasto: "2030-01-01",
     });
 
-    expect(result.success).toBe(true);
+    expect(result).toEqual({
+      categoria: "Alimentación",
+      descripcion: "Corrientazo",
+    });
 
-    if (!result.success) return;
-
-    expect(result.data).not.toHaveProperty("monto");
-    expect(result.data).not.toHaveProperty("fecha_gasto");
+    expect(result).not.toHaveProperty("confianza");
+    expect(result).not.toHaveProperty("monto");
+    expect(result).not.toHaveProperty("fecha_gasto");
   });
 });
