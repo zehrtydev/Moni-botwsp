@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aiExpenseInterpretationSchema, getAIProviderConfig, toExpenseDraft } from "./ai-expense-interpreter";
+import { aiExpenseInterpretationSchema, getAIProviderConfig, getOllamaNativeChatUrl, toExpenseDraft } from "./ai-expense-interpreter";
 
 describe("AI expense interpreter contract", () => {
   it("accepts only the structured expense contract", () => {
@@ -19,6 +19,15 @@ describe("AI expense interpreter contract", () => {
       baseURL: "http://127.0.0.1:11434/v1",
       model: "qwen3:1.7b",
     });
+  });
+
+  it("maps Ollama OpenAI-compatible URLs to the native chat endpoint", () => {
+    expect(getOllamaNativeChatUrl("http://ollama:11434/v1")).toBe(
+      "http://ollama:11434/api/chat",
+    );
+    expect(getOllamaNativeChatUrl("http://ollama:11434")).toBe(
+      "http://ollama:11434/api/chat",
+    );
   });
 
   it("does not activate OpenAI with a placeholder key", () => {
