@@ -18,7 +18,7 @@ Este estado describe evidencia del repositorio y la verificación puntual de des
 - Presupuestos mensuales y health check.
 - Migraciones Supabase con RLS, restricciones de propiedad e índices de idempotencia.
 - Suite Vitest, pruebas de rutas y una prueba E2E smoke configuradas.
-- Despliegue automático desde pushes a `main`: la ejecución de verificación del commit `73e888e` completó calidad, publicación de imagen, despliegue al VPS y health check público. La variable `PRODUCTION_DEPLOY_ENABLED` está habilitada.
+- Despliegue automático desde pushes a `main`: el commit `75fb053` completó calidad, publicación de imagen, despliegue al VPS y health check público. La variable `PRODUCTION_DEPLOY_ENABLED` está habilitada.
 
 El repositorio contiene 30 archivos de pruebas Vitest. La validación de esta actualización ejecutó 190/190 pruebas de la suite completa, ESLint y TypeScript sin errores directamente en este worktree. El formulario informa del envío pendiente de verificación y presenta el fallo de envío como error, sin anunciar una vinculación completada. El archivo pgTAP de pairing pasó 66/66 pruebas contra Supabase local.
 

@@ -144,5 +144,5 @@ Nunca pruebes una restauración sobre la base activa sin ventana de mantenimient
 - [x] Los cuatro secretos de GitHub Actions están configurados.
 - [x] `PRODUCTION_DEPLOY_ENABLED` está configurada como `true`.
 - [ ] Se realizó el backup previo y se apartaron los archivos sin seguimiento conflictivos.
-- [x] El primer despliegue automático terminó correctamente: el commit de verificación `73e888e` completó calidad, publicación de imagen, despliegue remoto y health check el 2026-09-26 ([run 36260935903](https://github.com/zehrtydev/Moni-botwsp/actions/runs/36260935903)).
+- [x] El despliegue automático terminó correctamente desde `main`: el commit `75fb053` completó calidad, publicación de imagen, despliegue remoto y health check el 2026-09-26 ([run 36263623260](https://github.com/zehrtydev/Moni-botwsp/actions/runs/36263623260)).
 - [ ] Se completó una prueba funcional real de WhatsApp.
