@@ -3,11 +3,11 @@ name: CI and Deploy Moni
 on:
   pull_request:
     branches:
-      - master
+      - main
 
   push:
     branches:
-      - master
+      - main
 
   workflow_dispatch:
 
@@ -80,7 +80,7 @@ jobs:
 
   publish:
     name: Build and publish image
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
       - quality
 
@@ -125,7 +125,7 @@ jobs:
 
   deploy:
     name: Deploy production
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master' && vars.PRODUCTION_DEPLOY_ENABLED == 'true'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.PRODUCTION_DEPLOY_ENABLED == 'true'
 
     needs:
       - publish

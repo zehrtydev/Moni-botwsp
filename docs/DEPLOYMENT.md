@@ -57,7 +57,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml config --qu
 
 ## Despliegue automático
 
-`.github/workflows/deploy-vps.yml` se ejecuta con cada push a `master`. Tras publicar la imagen, el job de producción requiere que la variable de repositorio `PRODUCTION_DEPLOY_ENABLED` sea `true`. GitHub Actions necesita estos secretos del repositorio:
+`.github/workflows/deploy-vps.yml` se ejecuta con cada push a `main`. Tras publicar la imagen, el job de producción requiere que la variable de repositorio `PRODUCTION_DEPLOY_ENABLED` sea `true`. GitHub Actions necesita estos secretos del repositorio:
 
 - `VPS_HOST`: IP o hostname del VPS.
 - `VPS_USER`: usuario de despliegue, actualmente `moniadmin`.
