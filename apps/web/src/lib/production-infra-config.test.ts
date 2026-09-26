@@ -172,7 +172,7 @@ describe("production VPS configuration", () => {
     );
 
     expect(workflow).toContain(
-      "github.ref == 'refs/heads/master'",
+      "github.ref == 'refs/heads/main'",
     );
 
     expect(workflow).toContain(
