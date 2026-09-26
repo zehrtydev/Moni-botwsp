@@ -57,7 +57,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml config --qu
 
 ## Despliegue automático
 
-`.github/workflows/deploy-vps.yml` se ejecuta con cada push a `master`. GitHub Actions necesita estos secretos del repositorio:
+`.github/workflows/deploy-vps.yml` se ejecuta con cada push a `master`. Tras publicar la imagen, el job de producción requiere que la variable de repositorio `PRODUCTION_DEPLOY_ENABLED` sea `true`. GitHub Actions necesita estos secretos del repositorio:
 
 - `VPS_HOST`: IP o hostname del VPS.
 - `VPS_USER`: usuario de despliegue, actualmente `moniadmin`.
@@ -70,7 +70,7 @@ Obtén la huella directamente en el VPS:
 sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256 | awk '{print $2}'
 ```
 
-El workflow verifica esa huella, hace `git pull --ff-only`, valida el Compose, descarga las imágenes fijadas, construye la web, levanta los seis servicios con `--wait` y comprueba `https://moni.zehrty.dev/api/health`.
+El workflow verifica esa huella y delega el despliegue al comando remoto `deploy-moni <SHA>`. Después comprueba `https://moni.zehrty.dev/api/health` desde el runner de GitHub Actions.
 
 ## Primera adopción del checkout existente
 
@@ -141,7 +141,8 @@ Nunca pruebes una restauración sobre la base activa sin ventana de mantenimient
 - [x] El Compose versionado adopta el proyecto, contenedores y volúmenes actuales.
 - [ ] Migraciones de Supabase y RLS verificadas.
 - [ ] Backups y restauración de prueba verificados.
-- [ ] Los cuatro secretos de GitHub Actions están configurados.
+- [x] Los cuatro secretos de GitHub Actions están configurados.
+- [x] `PRODUCTION_DEPLOY_ENABLED` está configurada como `true`.
 - [ ] Se realizó el backup previo y se apartaron los archivos sin seguimiento conflictivos.
-- [ ] El primer despliegue automático terminó correctamente.
+- [x] El primer despliegue automático terminó correctamente: el commit de verificación `73e888e` completó calidad, publicación de imagen, despliegue remoto y health check el 2026-09-26 ([run 36260935903](https://github.com/zehrtydev/Moni-botwsp/actions/runs/36260935903)).
 - [ ] Se completó una prueba funcional real de WhatsApp.

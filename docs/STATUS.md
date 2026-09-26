@@ -1,8 +1,8 @@
 # Estado del proyecto
 
-**Actualizado:** 2026-09-16
+**Actualizado:** 2026-09-26
 
-Este estado describe evidencia del repositorio; no sustituye una verificación del entorno desplegado.
+Este estado describe evidencia del repositorio y la verificación puntual de despliegue del 2026-09-26; no sustituye la monitorización continua del entorno desplegado.
 
 ## Funciona según código y pruebas presentes
 
@@ -18,6 +18,7 @@ Este estado describe evidencia del repositorio; no sustituye una verificación d
 - Presupuestos mensuales y health check.
 - Migraciones Supabase con RLS, restricciones de propiedad e índices de idempotencia.
 - Suite Vitest, pruebas de rutas y una prueba E2E smoke configuradas.
+- Despliegue automático desde pushes a `master`: la ejecución de verificación del commit `73e888e` completó calidad, publicación de imagen, despliegue al VPS y health check público. La variable `PRODUCTION_DEPLOY_ENABLED` está habilitada.
 
 El repositorio contiene 30 archivos de pruebas Vitest. La validación de esta actualización ejecutó 190/190 pruebas de la suite completa, ESLint y TypeScript sin errores directamente en este worktree. El formulario informa del envío pendiente de verificación y presenta el fallo de envío como error, sin anunciar una vinculación completada. El archivo pgTAP de pairing pasó 66/66 pruebas contra Supabase local.
 
@@ -26,7 +27,7 @@ El repositorio contiene 30 archivos de pruebas Vitest. La validación de esta ac
 - Hay soporte de entrada de imagen y columnas de media, pero no se demuestra un pipeline completo de visión/OCR en el código actual.
 - Existe el rol y la tabla de administración/auditoría, pero no una consola admin visible en las rutas actuales.
 - El flujo de cambio de número está representado por esquema y funciones, pero no se observa una ruta UI/API completa para soporte.
-- La configuración de producción documenta una adopción automática al VPS, pero la checklist de `docs/DEPLOYMENT.md` todavía tiene pasos sin marcar.
+- Quedan pendientes la verificación de migraciones/RLS en producción, backups con restauración de prueba y una prueba funcional real de WhatsApp; ver la checklist de `docs/DEPLOYMENT.md`.
 
 ## Problemas o riesgos verificables
 
@@ -35,7 +36,7 @@ El repositorio contiene 30 archivos de pruebas Vitest. La validación de esta ac
 - El PRD describe `n8n` como superficie de webhook, pero el código actual procesa directamente en `/api/webhooks/whatsapp`; no hay configuración de n8n en el árbol inspeccionado.
 - El PRD histórico declara fuera de alcance presupuestos e ingresos, aunque ambos están implementados en código y migraciones.
 - El PRD y su catálogo inicial no reflejan todas las categorías actuales de `supabase/seed.sql`.
-- No se puede afirmar desde el checkout que la producción esté actualmente saludable; debe comprobarse con la guía de despliegue y `/api/health`.
+- El health check público devolvió `status: ok` con configuración y base de datos en estado `ok` durante el despliegue verificado el 2026-09-26. Esa comprobación puntual no sustituye monitorización continua.
 
 ## Componentes importantes
 
